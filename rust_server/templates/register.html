@@ -1,0 +1,71 @@
+<div>
+  <h2 class="card-header">Register your account.</h2>
+  <div class="card-body">
+    <form
+      hx-post="/auth/register-user"
+      hx-target="#main-content"
+      hx-swap="innerHTML"
+      hx-ext="json-enc"
+    >
+      <div class="form-group">
+        <label htmlFor="username">Username</label>
+        <input
+          type="text"
+          class="form-control"
+          id="username"
+          name="username"
+          placeholder="How do you want to be called?"
+        />
+      </div>
+      <div class="form-group">
+        <label htmlFor="email">Email</label>
+        <input
+          type="email"
+          class="form-control"
+          id="email"
+          name="email"
+          placeholder="What is your Email-Address?"
+        />
+      </div>
+      <div class="form-group">
+        <label htmlFor="password">Password</label>
+        <input
+          type="password"
+          class="form-control"
+          id="password"
+          name="password"
+          placeholder="Please choose a Password"
+        />
+      </div>
+      <div class="form-group">
+        <label htmlFor="passwordRep">Repeat Password</label>
+        <input
+          type="password"
+          class="form-control"
+          id="passwordRep"
+          name="password_repeat"
+          placeholder="For security, please repeat your Password"
+        />
+      </div>
+      <p class="text-danger">{{ error_message }}</p>
+      <div class="text-center">
+        <button
+          class="btn btn-primary"
+        >
+          Register
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <div class="text-center">
+    <button
+      class="btn btn-link"
+      hx-get="/auth/login"
+      hx-target="#main-content"
+      hx-swap="innerHTML"
+    >
+      Login &#8594;
+    </button>
+  </div>
+</div>

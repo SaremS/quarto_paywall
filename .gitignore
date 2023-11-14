@@ -1,0 +1,13 @@
+#auth-server files
+**/target/
+**/Cargo.lock
+**/tarpaulin-report.html
+
+#quarto files
+**/_site/
+**/.quarto/
+
+#misc
+**/.DS_Store
+**/.env
+**/.ipynb_checkpoints/

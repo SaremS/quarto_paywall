@@ -1,0 +1,17 @@
+---
+title: "With paywall {{< bi lock >}}"
+author: "Paywaller"
+date: "2023-11-03"
+categories: [news]
+---
+
+## Heading 1
+This post contains a paywall
+
+![](/images/thumbnail.jpg)
+
+Paywall is indicated by a `div` with `class="PAYWALLED"`.
+
+## Paywall starts here
+<div class="PAYWALLED"></div>
+Congratulations - you have made it beyond the paywall!

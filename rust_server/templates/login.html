@@ -1,0 +1,51 @@
+<div>
+  <h2 class="card-header">Login to your account.</h2>
+  <div class="card-body">
+    <form
+      hx-post="/auth/login-user"
+      hx-target="#main-content"
+      hx-swap="innerHTML"
+      hx-ext="json-enc"
+    >
+      <div class="form-group">
+        <label htmlFor="email">Email</label>
+        <input
+          type="email"
+          class="form-control"
+          id="email"
+          placeholder="Your Email"
+          name="email"
+        />
+      </div>
+      <div class="form-group">
+        <label htmlFor="password">Password</label>
+        <input
+          type="password"
+          class="form-control"
+          id="password"
+          placeholder="Your Password"
+          name="password"
+        />
+      </div>
+      <p class="text-danger">{{ error_message }}</p>
+      <div class="text-center">
+        <button
+          class="btn btn-primary"
+        >
+          Login
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <div class="text-center">
+    <button
+      class="btn btn-link"
+      hx-get="/auth/register"
+      hx-target="#main-content"
+      hx-swap="innerHTML"
+    >
+      Register &#8594;
+    </button btn btn-link>
+  </div>
+</div>

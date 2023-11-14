@@ -1,0 +1,16 @@
+<div>
+  <h2 class="card-header">
+	  Welcome, {{ username }}.
+  </h2>
+  <div class="card-body">
+    <button
+      class="btn btn-danger"
+      hx-get="/auth/logout-user"
+      hx-target="#main-content"
+      hx-swap="innerHTML"
+    >
+      Logout
+    </button>
+
+
+</div>
