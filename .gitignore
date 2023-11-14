@@ -6,6 +6,7 @@
 #quarto files
 **/_site/
 **/.quarto/
+**/_extensions/
 
 #misc
 **/.DS_Store
