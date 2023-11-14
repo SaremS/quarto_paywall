@@ -1,16 +1,11 @@
 # Paywall for Quarto blogs (under construction)
-POC for a pay-per-article paywall for [Quarto blogs](https://quarto.org/docs/websites/website-blog.html).
+Pay-per-article paywall for [Quarto blogs](https://quarto.org/docs/websites/website-blog.html).
 
-TypeScript React + Rust + Quarto
+**Still under development - DO NOT USE THIS FOR YOUR BLOG YET**
 
-Since Quarto exports static websites, we need to manage frontend interactivity completely on the client-side 
-and cannot rely on some server-side templating framework. Current idea is to inject jquery into the Quarto
-exports to manipulate existing HTML; in addition, we overlay the static export of a React user dashboard as a modal, 
-which can then be created independently of the main Quarto website.
+Currently uses an in-memory database (HashMap) to store credentials and only allows to 'wall' articles for non-registered users.
 
-Rough to-dos:
-- Finish auth backend
-- Integrate user interface into quarto site sample
-- Integrate with some payment provider (probably Stripe)
-- Add paywall logic 
-
+ToDos:
+1. Add Stripe integration
+2. Add database backend
+3. Clean up the code and add tests
