@@ -7,6 +7,7 @@ use html_editor::operation::*;
 use html_editor::{parse, Element};
 
 use crate::utils::{AdvancedDeletable, AdvancedEditable};
+use crate::security::{SessionStatus, AuthLevel};
 
 pub struct InMemoryHtml {
     base_dir: String,
@@ -44,14 +45,14 @@ impl InMemoryHtml {
         };
     }
 
-    pub async fn get(&self, key: String, has_auth: bool) -> Option<String> {
+    pub async fn get(&self, key: String, session_status: SessionStatus) -> Option<String> {
         let full_key = format!("{}/{}", self.base_dir, key);
 
         debug!("HTML from memory: {}", full_key);
 
         let result;
 
-        if has_auth {
+        if session_status.auth_level > AuthLevel::NoAuth {
             result = self.storage_has_auth.get(&full_key).map(|x| x.clone());
         } else {
             result = self.storage_no_auth.get(&full_key).map(|x| x.clone());

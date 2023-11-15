@@ -9,25 +9,65 @@ use actix_web::{
 use askama::Template;
 
 use crate::database::Database;
-use crate::models::{LoginUser, RegisterUser};
-use crate::security::{authorize_with_cookie, Role};
+use crate::inmemory_html_server::InMemoryHtml;
+use crate::models::{LoginUser, RegisterUser, Role};
+use crate::security::{authorize_with_cookie, AuthLevel, SessionStatus};
 use crate::templates::{
-    LoginTemplate, RegisterSuccessTemplate, RegisterTemplate, UberTemplate,
-    UserDashboardTemplate, LoginSuccessTemplate, LogoutSuccessTemplate
+    LoginSuccessTemplate, LoginTemplate, LogoutSuccessTemplate, RegisterSuccessTemplate,
+    RegisterTemplate, UberTemplate, UserDashboardTemplate,
 };
 
-pub async fn get_user_dashboard(session: Session) -> Result<impl Responder> {
-    let cookie_result = session.get::<String>("session");
+pub async fn index(in_memory_html: Data<InMemoryHtml>, session_status: SessionStatus) -> Result<impl Responder> {
+    let output = in_memory_html.get("index.html".to_string(), session_status).await;
 
-    let (has_auth, username) = match cookie_result {
-        Ok(cookie_option) => authorize_with_cookie((Role::User, cookie_option)).await,
-        Err(_) => (false, "".to_string()),
-    };
+    match output {
+        Some(html) => {
+            return Ok(HttpResponse::Ok()
+                .content_type("text/html; charset=utf-8")
+                .body(html))
+        }
+        None => return Ok(HttpResponse::NotFound().body("Not found")),
+    }
+}
+
+pub async fn static_files(req: HttpRequest) -> Result<fs::NamedFile> {
+    let mut path = PathBuf::new();
+    path.push("../paywall_blog/_site/");
+
+    let path_suffix: PathBuf = req.match_info().query("filename").parse().unwrap();
+    path.push(path_suffix);
+    Ok(fs::NamedFile::open(path)?)
+}
+
+pub async fn html_files(
+    req: HttpRequest,
+    in_memory_html: Data<InMemoryHtml>,
+    session_status: SessionStatus,
+) -> Result<impl Responder> {
+    let path: String = req.match_info().query("filename").parse().unwrap();
+
+    let output = in_memory_html.get(path, session_status).await;
+
+    match output {
+        Some(html) => {
+            return Ok(HttpResponse::Ok()
+                .content_type("text/html; charset=utf-8")
+                .body(html))
+        }
+        None => return Ok(HttpResponse::NotFound().body("Not found")),
+    }
+}
+
+pub async fn get_user_dashboard(session_status: SessionStatus) -> Result<impl Responder> {
+    let auth_level = session_status.auth_level;
 
     let content;
-
-    if has_auth {
-        content = UserDashboardTemplate { username }.render().unwrap();
+    if auth_level > AuthLevel::NoAuth {
+        content = UserDashboardTemplate {
+            username: session_status.username.unwrap(),
+        }
+        .render()
+        .unwrap();
     } else {
         content = LoginTemplate {
             error_message: "".to_string(),
@@ -45,18 +85,11 @@ pub async fn get_user_dashboard(session: Session) -> Result<impl Responder> {
     return Ok(response);
 }
 
-pub async fn get_user_dashboard_template(session: Session) -> Result<impl Responder> {
-    let cookie_result = session.get::<String>("session");
-
-    let (has_auth, username) = match cookie_result {
-        Ok(cookie_option) => authorize_with_cookie((Role::User, cookie_option)).await,
-        Err(_) => (false, "".to_string()),
-    };
-
+pub async fn get_user_dashboard_template(session_status: SessionStatus) -> Result<impl Responder> {
     let content;
 
-    if has_auth {
-        content = UserDashboardTemplate { username }.render().unwrap();
+    if session_status.auth_level > AuthLevel::NoAuth {
+        content = UserDashboardTemplate { username: session_status.username.unwrap() }.render().unwrap();
     } else {
         content = LoginTemplate {
             error_message: "".to_string(),
@@ -72,18 +105,11 @@ pub async fn get_user_dashboard_template(session: Session) -> Result<impl Respon
     return Ok(response);
 }
 
-pub async fn get_paywalled_content(req: HttpRequest, session: Session) -> Result<fs::NamedFile> {
-    let cookie_result = session.get::<String>("session");
-
-    let (has_auth, _) = match cookie_result {
-        Ok(cookie_option) => authorize_with_cookie((Role::User, cookie_option)).await,
-        Err(_) => (false, "".to_string()),
-    };
-
+pub async fn get_paywalled_content(req: HttpRequest, session_status: SessionStatus) -> Result<fs::NamedFile> {
     let mut path;
     let filename: PathBuf = req.match_info().query("filename").parse().unwrap();
 
-    if has_auth {
+    if session_status.auth_level > AuthLevel::NoAuth {
         path = PathBuf::from("../paywall_blog/paywalled/");
         path.push(filename);
     } else {
@@ -190,9 +216,7 @@ pub async fn put_login_user(
 }
 
 pub async fn get_logout_user(session: Session) -> Result<impl Responder> {
-    let login_template = LogoutSuccessTemplate {}
-    .render()
-    .unwrap();
+    let login_template = LogoutSuccessTemplate {}.render().unwrap();
 
     let _ = session.remove("session");
 

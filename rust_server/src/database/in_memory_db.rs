@@ -42,6 +42,7 @@ impl Database for InMemoryDb {
             password: crate::security::get_hashed_password(&user.password),
             is_verified: false,
             role: "user".to_string(),
+            accessible_articles: Vec::new()
         };
 
         match created_user.validate() {
