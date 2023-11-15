@@ -61,6 +61,43 @@ impl Database for InMemoryDb {
         return Ok(user_created);
     }
 
+    async fn create_admin(&self, user: RegisterUser) -> Result<UserCreated, SignupError> {
+        match user.validate() {
+            Ok(_) => (),
+            Err(e) => return Err(SignupError::RegistrationFieldsError(e.to_string())),
+        }
+
+        let mut local_db = self.db.lock().await;
+
+        if local_db.contains_key(&user.email) {
+            return Err(SignupError::EmailExistsError(user.email));
+        }
+
+        let created_user = User {
+            email: user.email,
+            username: user.username,
+            password: crate::security::get_hashed_password(&user.password),
+            is_verified: false,
+            role: "admin".to_string(),
+            accessible_articles: Vec::new()
+        };
+
+        match created_user.validate() {
+            Ok(_) => (),
+            Err(e) => return Err(SignupError::RegistrationFieldsError(e.to_string())),
+        }
+
+        local_db.insert(created_user.email.clone(), created_user.clone());
+        let token = crate::security::get_jwt_for_user((created_user).clone());
+        
+        let user_created = UserCreated {
+            username: created_user.username.clone(),
+            jwt: token
+        };
+
+        return Ok(user_created);
+    }
+
     async fn login(&self, login_user: LoginUser) -> Result<UserLoggedIn, AuthenticationError> {
         let cur_user_db = self.db.lock().await;
 

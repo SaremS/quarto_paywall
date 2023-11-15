@@ -9,11 +9,23 @@ use rust_server::routes::{
     html_files, index, put_login_user, put_register_user, static_files,
 };
 use rust_server::security::{AuthCheck, make_session_middleware};
+use rust_server::models::RegisterUser;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    let db_arc: Arc<dyn Database> = Arc::new(InMemoryDb::new());
+    let db_base = InMemoryDb::new();
+    let admin_user = RegisterUser {
+        email: "admin@admin.com".to_string(),
+        username: "admin".to_string(),
+        password: "asdf".to_string(),
+        password_repeat: "asdf".to_string()
+    };
+
+    let _  = db_base.create_admin(admin_user).await;
+    let db_arc: Arc<dyn Database> = Arc::new(db_base);
+   
     let db = Data::from(db_arc);
+ 
 
     let in_memory_html = Data::new(InMemoryHtml::new("../paywall_blog/_site"));
 

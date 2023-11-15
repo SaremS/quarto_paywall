@@ -79,13 +79,15 @@ where
 
             let cookie_result = session.get::<String>("session");
 
-            let (has_auth, username) = match cookie_result {
-                Ok(cookie_option) => authorize_with_cookie((Role::User, cookie_option)).await,
-                Err(_) => (false, "".to_string()),
+            let (has_access, is_admin, username) = match cookie_result {
+                Ok(cookie_option) => authorize_with_cookie(cookie_option).await,
+                Err(_) => (false, false, None),
             };
             
-            let auth_status = if has_auth {
-                SessionStatus{auth_level: AuthLevel::UserUnconfirmed, username: Some(username)}
+            let auth_status = if has_access && is_admin {
+                SessionStatus{auth_level: AuthLevel::AdminAuth, username: Some(username.unwrap())}
+            } else if has_access {
+                SessionStatus{auth_level: AuthLevel::UserUnconfirmed, username: Some(username.unwrap())}
             } else {
                 SessionStatus{auth_level: AuthLevel::NoAuth, username: None}
             };
@@ -177,18 +179,18 @@ pub fn get_jwt_for_user(user: User) -> String {
     return token;
 }
 
-fn is_authorized(required_role: Role, claims_role: &str) -> bool {
+fn is_admin(claims_role: &str) -> bool {
     let claims_role = Role::from_str(claims_role);
 
-    return required_role == claims_role || claims_role == Role::Admin;
+    return claims_role == Role::Admin;
 }
 
-pub async fn authorize_with_cookie((role, token_option): (Role, Option<String>)) -> (bool, String) {
+pub async fn authorize_with_cookie(token_option: Option<String>) -> (bool, bool, Option<String>) {
     let token;
 
     match token_option {
         Some(t) => token = t,
-        None => return (false, "".to_string()),
+        None => return (false, false, None),
     }
 
     let decoded = decode::<Claims>(
@@ -199,12 +201,12 @@ pub async fn authorize_with_cookie((role, token_option): (Role, Option<String>))
 
     match decoded {
         Ok(d) => {
-            if is_authorized(role, &d.claims.role) {
-                return (true, d.claims.sub);
+            if is_admin(&d.claims.role) {
+                return (true, true, Some(d.claims.sub));
             } else {
-                return (false, "".to_string());
+                return (true, false, Some(d.claims.sub));
             }
         }
-        Err(_) => return (false, "".to_string()),
+        Err(_) => return (false, false, None),
     }
 }
