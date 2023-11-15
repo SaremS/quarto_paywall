@@ -10,8 +10,8 @@ use askama::Template;
 
 use crate::database::Database;
 use crate::inmemory_html_server::InMemoryHtml;
-use crate::models::{LoginUser, RegisterUser, Role};
-use crate::security::{authorize_with_cookie, AuthLevel, SessionStatus};
+use crate::models::{LoginUser, RegisterUser};
+use crate::security::{AuthLevel, SessionStatus};
 use crate::templates::{
     LoginSuccessTemplate, LoginTemplate, LogoutSuccessTemplate, RegisterSuccessTemplate,
     RegisterTemplate, UberTemplate, UserDashboardTemplate,

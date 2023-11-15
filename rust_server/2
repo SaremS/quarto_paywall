@@ -19,8 +19,7 @@ use futures_util::future::{FutureExt, LocalBoxFuture};
 use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, Validation};
 
 use crate::models::{Claims, Role, User};
-use crate::security::get_hash_fixed_salt;
-use crate::utils::last_five_chars;
+use crate::security::get_hash;
 
 pub fn make_session_middleware() -> SessionMiddleware<CookieSessionStore> {
     SessionMiddleware::builder(CookieSessionStore::default(), Key::from(&[0; 64]))
@@ -75,8 +74,13 @@ where
         let srv = self.service.clone();
         async move {
             let session = req.get_session();
-            let target_element = req.match_info().as_str().split("/").last().unwrap();
-            let target_hash = last_five_chars(&get_hash_fixed_salt(&target_element));
+            let target_element = req
+                .match_info()
+                .as_str()
+                .split("/")
+                .last()
+                .unwrap();
+            let target_hash = (get_hash(&target_element)[0..5]).to_string();
 
             let cookie_result = session.get::<String>("session");
 
@@ -88,11 +92,6 @@ where
             let auth_status = if has_access && is_admin {
                 SessionStatus {
                     auth_level: AuthLevel::AdminAuth,
-                    username: Some(username.unwrap()),
-                }
-            } else if has_access && has_paid {
-                SessionStatus {
-                    auth_level: AuthLevel::PaidAuth,
                     username: Some(username.unwrap()),
                 }
             } else if has_access {
@@ -182,7 +181,7 @@ pub fn get_jwt_for_user(user: User) -> String {
     let acc_hash = user
         .accessible_articles
         .into_iter()
-        .map(|x| last_five_chars(&get_hash_fixed_salt(&x)))
+        .map(|x| (get_hash(&x)[0..5]).to_string())
         .collect();
     let user_claims = Claims {
         sub: user.username,
@@ -209,11 +208,7 @@ fn is_admin(claims_role: &str) -> bool {
     return claims_role == Role::Admin;
 }
 
-pub async fn authorize_with_cookie(
-    token_option: Option<String>,
-    target_hash: String,
-) -> (bool, bool, bool, Option<String>) {
-    use log::debug;
+pub async fn authorize_with_cookie(token_option: Option<String>, target_hash: String) -> (bool, bool, bool, Option<String>) {
     let token;
 
     match token_option {
@@ -226,19 +221,13 @@ pub async fn authorize_with_cookie(
         &DecodingKey::from_secret(&get_secret()),
         &Validation::default(),
     );
+
     match decoded {
         Ok(d) => {
-
-            debug!("{:?}, {:?}", target_hash, d.claims.accessible_articles);
             if is_admin(&d.claims.role) {
                 return (true, true, true, Some(d.claims.sub));
             } else {
-                return (
-                    true,
-                    d.claims.accessible_articles.contains(&target_hash),
-                    false,
-                    Some(d.claims.sub),
-                );
+                return (true, d.claims.accessible_articles.contains(&target_hash),false, Some(d.claims.sub));
             }
         }
         Err(_) => return (false, false, false, None),

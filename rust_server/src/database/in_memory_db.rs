@@ -39,10 +39,10 @@ impl Database for InMemoryDb {
         let created_user = User {
             email: user.email,
             username: user.username,
-            password: crate::security::get_hashed_password(&user.password),
+            password: crate::security::get_hash(&user.password),
             is_verified: false,
             role: "user".to_string(),
-            accessible_articles: Vec::new()
+            accessible_articles: vec!["paywaled.html".to_string()]
         };
 
         match created_user.validate() {
@@ -76,7 +76,7 @@ impl Database for InMemoryDb {
         let created_user = User {
             email: user.email,
             username: user.username,
-            password: crate::security::get_hashed_password(&user.password),
+            password: crate::security::get_hash(&user.password),
             is_verified: false,
             role: "admin".to_string(),
             accessible_articles: Vec::new()
@@ -108,7 +108,7 @@ impl Database for InMemoryDb {
             }
         };
 
-        if !crate::security::verify_password(&login_user.password, &user.password) {
+        if !crate::security::verify_hash(&login_user.password, &user.password) {
             return Err(AuthenticationError::InvalidCredentialsError);
         }
 

@@ -23,10 +23,8 @@ async fn main() -> std::io::Result<()> {
 
     let _  = db_base.create_admin(admin_user).await;
     let db_arc: Arc<dyn Database> = Arc::new(db_base);
-   
     let db = Data::from(db_arc);
  
-
     let in_memory_html = Data::new(InMemoryHtml::new("../paywall_blog/_site"));
 
     env_logger::init_from_env(env_logger::Env::new().default_filter_or("debug"));
