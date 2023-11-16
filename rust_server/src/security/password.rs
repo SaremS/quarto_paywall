@@ -34,6 +34,9 @@ pub fn verify_hash(hashable: &str, hash: &str) -> bool {
 }
 
 pub fn xor_hash(s: &str) -> String {
+    /*
+    Trivial hashing to create unique identifiers that don't need to be secure.
+    */
     let mut hash = 0u8;
     for byte in s.bytes() {
         hash ^= byte;

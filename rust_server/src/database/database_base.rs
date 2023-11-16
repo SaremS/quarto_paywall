@@ -11,5 +11,5 @@ pub trait Database: Send + Sync {
     async fn login(&self, user: LoginUser) -> Result<UserLoggedIn, AuthenticationError>;
 
     async fn get_user_by_id(&self, id: usize) -> Option<User>;
-    //async fn add_accessible_article_to_id(&self, id: usize, article: String) -> Result<(),()>;
+    async fn add_accessible_article_to_id(&self, id: usize, article: String) -> Result<(),()>;
 }

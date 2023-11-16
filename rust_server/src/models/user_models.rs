@@ -1,3 +1,5 @@
+use std::collections::HashSet; 
+
 use lazy_static::lazy_static;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
@@ -35,5 +37,5 @@ pub struct User {
     pub is_verified: bool,
     #[validate(regex = "VALID_ROLE")]
     pub role: String,
-    pub accessible_articles: Vec<String>,
+    pub accessible_articles: HashSet<String>,
 }
