@@ -7,6 +7,7 @@ use actix_web::{
     HttpRequest, HttpResponse, Responder, Result
 };
 use askama::Template;
+use serde::{Serialize, Deserialize};
 
 use stripe::{EventObject, EventType, Webhook, WebhookError};
 use stripe::{
@@ -19,7 +20,7 @@ use stripe::CustomerId;
 use crate::database::Database;
 use crate::inmemory_html_server::InMemoryHtml;
 use crate::models::{LoginUser, RegisterUser};
-use crate::security::{AuthLevel, SessionStatus};
+use crate::security::{AuthLevel, SessionStatus, xor_cipher};
 use crate::templates::{
     LoginSuccessTemplate, LoginTemplate, LogoutSuccessTemplate, RegisterSuccessTemplate,
     RegisterTemplate, UberTemplate, UserDashboardTemplate,
@@ -247,11 +248,17 @@ pub async fn get_logout_user(session: Session) -> Result<impl Responder> {
     return Ok(response);
 }
 
+#[derive(Serialize, Deserialize, Debug)]
+struct ClientReference {
+    user_id: usize,
+    target: String
+}
+
 //https://github.com/arlyon/async-stripe/blob/master/examples/webhook-actix.rs
 pub async fn stripe_webhook_add_article(
     req: HttpRequest,
     payload: Bytes,
-    //db: Data<dyn Database>,
+    db: Data<dyn Database>,
 ) -> Result<impl Responder> {
     let payload_str = std::str::from_utf8(payload.borrow()).unwrap();
     let stripe_signature = get_header_value(&req, "Stripe-Signature").unwrap_or_default();
@@ -267,7 +274,9 @@ pub async fn stripe_webhook_add_article(
             }
             EventType::CheckoutSessionCompleted => {
                 if let EventObject::CheckoutSession(session) = event.data.object {
-                    handle_checkout_session(session).unwrap();
+                    let reference_json = xor_cipher(&session.client_reference_id.unwrap(), 123);
+                    let client_reference: ClientReference = serde_json::from_str(&reference_json).unwrap();
+                    let res = db.add_accessible_article_to_id(client_reference.user_id.clone(), client_reference.target.clone()).await;
                 }
             }
             _ => {
@@ -291,26 +300,32 @@ fn handle_account_updated(account: stripe::Account) -> Result<(), WebhookError> 
 }
 
 fn handle_checkout_session(session: stripe::CheckoutSession) -> Result<(), WebhookError> {
+    
+
     println!("Received checkout session completed webhook with client_reference_id: {:?}", session.client_reference_id);
     Ok(())
 }
 
 
+
+
 pub async fn redirect_to_stripe_checkout() -> Result<impl Responder> {
     use log::debug;
-    let stripe_checkout = get_stripe_checkout_url().await;
+    let reference = ClientReference {user_id: 1, target: "paywalled.html".to_string()};
+    let stripe_checkout = get_stripe_checkout_url(reference, "Article: Paywalled".to_string(), 250).await;
     
     debug!("{:?}", stripe_checkout.id);
 
     return Ok(Redirect::to(stripe_checkout.url.unwrap()).see_other()); 
 }
 
-async fn get_stripe_checkout_url() -> CheckoutSession {
+
+async fn get_stripe_checkout_url(client_reference: ClientReference, name: String, price: i64) -> CheckoutSession {
     let secret_key = std::env::var("STRIPE_SECRET_KEY").expect("Missing STRIPE_SECRET_KEY in env");
     let client = Client::new(secret_key);
 
     let product = {
-        let mut create_product = CreateProduct::new("T-Shirt");
+        let mut create_product = CreateProduct::new(&name);
         create_product.metadata = Some(std::collections::HashMap::from([(
             String::from("async-stripe"),
             String::from("true"),
@@ -326,7 +341,7 @@ async fn get_stripe_checkout_url() -> CheckoutSession {
             String::from("async-stripe"),
             String::from("true"),
         )]));
-        create_price.unit_amount = Some(1000);
+        create_price.unit_amount = Some(price);
         create_price.expand = &["product"];
         Price::create(&client, create_price).await.unwrap()
     };
@@ -338,14 +353,16 @@ async fn get_stripe_checkout_url() -> CheckoutSession {
         price.currency.unwrap()
     );
 
-    // finally, create a checkout session for this product / price
+    let reference = serde_json::to_string(&client_reference).unwrap();
+    let reference_encoded = xor_cipher(&reference, 123);
+
     let checkout_session = {
         let mut params = CreateCheckoutSession::new("http://sarem-seitz.com");
         params.cancel_url = Some("http://sarem-seitz.com");
-        params.client_reference_id = Some("TEST REFERENCE");
+        params.client_reference_id = Some(&reference_encoded);
         params.mode = Some(CheckoutSessionMode::Payment);
         params.line_items = Some(vec![CreateCheckoutSessionLineItems {
-            quantity: Some(3),
+            quantity: Some(1),
             price: Some(price.id.to_string()),
             ..Default::default()
         }]);

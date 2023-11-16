@@ -44,3 +44,6 @@ pub fn xor_hash(s: &str) -> String {
     return format!("{:02x}", hash);
 }
 
+pub fn xor_cipher(input: &str, key: u8) -> String {
+    return input.chars().map(|c| (c as u8 ^ key) as char).collect();
+}

@@ -76,7 +76,7 @@ where
         async move {
             let target_element = req.match_info().as_str().split("/").last().unwrap();
 
-            if !target_element.contains(".html") {
+            if !target_element.contains(".html") && !target_element.contains("user-dashboard"){
                 let session_status = SessionStatus {
                     auth_level: AuthLevel::NoAuth,
                     username: None,
