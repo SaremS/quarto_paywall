@@ -33,4 +33,11 @@ pub fn verify_hash(hashable: &str, hash: &str) -> bool {
         .is_ok();
 }
 
+pub fn xor_hash(s: &str) -> String {
+    let mut hash = 0u8;
+    for byte in s.bytes() {
+        hash ^= byte;
+    }
+    return format!("{:02x}", hash);
+}
 

@@ -26,6 +26,7 @@ pub struct UserCreated {
 
 #[derive(Debug, Validate, Serialize, Clone)]
 pub struct User {
+    pub id: usize,
     #[validate(email)]
     pub email: String,
     #[validate(length(min = 1))]

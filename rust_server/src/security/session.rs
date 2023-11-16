@@ -19,7 +19,7 @@ use futures_util::future::{FutureExt, LocalBoxFuture};
 use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, Validation};
 
 use crate::models::{Claims, Role, User};
-use crate::security::get_hash_fixed_salt;
+use crate::security::xor_hash;
 use crate::utils::last_five_chars;
 
 pub fn make_session_middleware() -> SessionMiddleware<CookieSessionStore> {
@@ -74,9 +74,22 @@ where
     fn call(&self, req: ServiceRequest) -> Self::Future {
         let srv = self.service.clone();
         async move {
-            let session = req.get_session();
             let target_element = req.match_info().as_str().split("/").last().unwrap();
-            let target_hash = last_five_chars(&get_hash_fixed_salt(&target_element));
+
+            if !target_element.contains(".html") {
+                let session_status = SessionStatus {
+                    auth_level: AuthLevel::NoAuth,
+                    username: None,
+                };
+                req.extensions_mut().insert::<SessionStatus>(session_status);
+
+                let res = srv.call(req).await?;
+                return Ok(res);
+            }
+
+            let session = req.get_session();
+
+            let target_hash = last_five_chars(&xor_hash(&target_element));
 
             let cookie_result = session.get::<String>("session");
 
@@ -110,7 +123,7 @@ where
             req.extensions_mut().insert::<SessionStatus>(auth_status);
             let res = srv.call(req).await?;
 
-            Ok(res)
+            return Ok(res);
         }
         .boxed_local()
     }
@@ -182,7 +195,7 @@ pub fn get_jwt_for_user(user: User) -> String {
     let acc_hash = user
         .accessible_articles
         .into_iter()
-        .map(|x| last_five_chars(&get_hash_fixed_salt(&x)))
+        .map(|x| last_five_chars(&xor_hash(&x)))
         .collect();
     let user_claims = Claims {
         sub: user.username,
@@ -228,7 +241,6 @@ pub async fn authorize_with_cookie(
     );
     match decoded {
         Ok(d) => {
-
             debug!("{:?}, {:?}", target_hash, d.claims.accessible_articles);
             if is_admin(&d.claims.role) {
                 return (true, true, true, Some(d.claims.sub));
