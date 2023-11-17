@@ -7,15 +7,18 @@ use html_editor::operation::*;
 use html_editor::{parse, Element};
 
 use crate::utils::{AdvancedDeletable, AdvancedEditable};
+use crate::security::{SessionStatus, AuthLevel};
 
 pub struct InMemoryHtml {
     base_dir: String,
+    storage_has_paid: HashMap<String, String>,
     storage_has_auth: HashMap<String, String>,
-    storage_no_auth: HashMap<String, String>,
+    storage_no_auth: HashMap<String, String>
 }
 
 impl InMemoryHtml {
     pub fn new(base_dir: &str) -> InMemoryHtml {
+        let mut storage_has_paid: HashMap<String, String> = HashMap::new();
         let mut storage_has_auth: HashMap<String, String> = HashMap::new();
         let mut storage_no_auth: HashMap<String, String> = HashMap::new();
         for entry in WalkDir::new(base_dir).into_iter().filter_map(|e| e.ok()) {
@@ -25,11 +28,15 @@ impl InMemoryHtml {
                 match fs::read_to_string(path) {
                     Ok(contents) => {
                         let with_paywall_logic = InMemoryHtml::add_paywall_logic(contents);
-                        storage_has_auth.insert(file_path.clone(), with_paywall_logic.clone());
+                        storage_has_paid.insert(file_path.clone(), with_paywall_logic.clone());
 
                         let with_paywall_content_removed =
-                            InMemoryHtml::remove_paywalled_content(with_paywall_logic);
-                        storage_no_auth.insert(file_path, with_paywall_content_removed);
+                            InMemoryHtml::remove_paywalled_content(with_paywall_logic.clone(), "./templates/paywall.html".to_string());
+                        storage_has_auth.insert(file_path.clone(), with_paywall_content_removed);
+
+                        let with_registerwall_content_removed =
+                            InMemoryHtml::remove_paywalled_content(with_paywall_logic, "./templates/registerwall.html".to_string());
+                        storage_no_auth.insert(file_path, with_registerwall_content_removed);
                     }
                     Err(e) => {
                         error!("Error reading file {:?}: {}", path, e);
@@ -39,22 +46,25 @@ impl InMemoryHtml {
         }
         return InMemoryHtml {
             base_dir: base_dir.to_string(),
+            storage_has_paid,
             storage_has_auth,
             storage_no_auth,
         };
     }
 
-    pub async fn get(&self, key: String, has_auth: bool) -> Option<String> {
+    pub async fn get(&self, key: String, session_status: SessionStatus) -> Option<String> {
         let full_key = format!("{}/{}", self.base_dir, key);
 
         debug!("HTML from memory: {}", full_key);
 
         let result;
 
-        if has_auth {
+        if session_status.auth_level == AuthLevel::NoAuth {
+            result = self.storage_no_auth.get(&full_key).map(|x| x.clone());
+        } else if session_status.auth_level <= AuthLevel::UserConfirmed {
             result = self.storage_has_auth.get(&full_key).map(|x| x.clone());
         } else {
-            result = self.storage_no_auth.get(&full_key).map(|x| x.clone());
+            result = self.storage_has_paid.get(&full_key).map(|x| x.clone());
         }
 
         return result;
@@ -110,6 +120,31 @@ impl InMemoryHtml {
                 paywall_login_button.onclick = function () {
                     modal.style.display = "block";
                 };
+            }
+
+            var paywall_unlock_button = document.getElementById("paywall-unlock-button");
+            
+            if (paywall_unlock_button) {
+                paywall_unlock_button.onclick = function () {
+                document.body.style.cursor = 'wait';
+                paywall_unlock_button.disabled = true;
+                    
+            fetch("/purchase/checkout", {
+              method: "POST",
+              body: JSON.stringify({
+                purchase_target: "paywalled.html" 
+              }),
+              headers: {
+                "Content-type": "application/json; charset=UTF-8"
+              }
+            })
+              .then((response) => response.json())
+              .then((url) => window.open(url, '_blank').focus())
+              .finally(() => {
+                document.body.style.cursor = 'default';
+                paywall_unlock_button.disabled = false;
+              });
+                            };
             }
 
             btn.onclick = function() {
@@ -209,7 +244,7 @@ impl InMemoryHtml {
         return String::from(result);
     }
 
-    fn remove_paywalled_content(html: String) -> String {
+    fn remove_paywalled_content(html: String, wall_filepath: String) -> String {
         let mut html_doc = parse(&html).unwrap();
 
         let selectable = html_doc.query_mut(&Selector::from("main"));
@@ -218,7 +253,7 @@ impl InMemoryHtml {
             Some(el) => {
                 if let Some(_) = el.query(&Selector::from(".PAYWALLED")) {
                     el.delete_all_children_after_selector(&Selector::from(".PAYWALLED"));
-                    InMemoryHtml::append_paywall(el);
+                    InMemoryHtml::append_paywall(el, wall_filepath);
                 }
                 return String::from(html_doc.html());
             }
@@ -228,8 +263,8 @@ impl InMemoryHtml {
         }
     }
 
-    fn append_paywall(html_doc: &mut Element) -> &mut Element {
-        let paywall_html = fs::read_to_string("./templates/paywall.html").unwrap();
+    fn append_paywall(html_doc: &mut Element, wall_filepath: String) -> &mut Element {
+        let paywall_html = fs::read_to_string(wall_filepath).unwrap();
         let paywall_node = parse(&paywall_html).unwrap()[0].clone();
 
         let result = html_doc

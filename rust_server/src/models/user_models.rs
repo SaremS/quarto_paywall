@@ -1,3 +1,5 @@
+use std::collections::HashSet; 
+
 use lazy_static::lazy_static;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
@@ -26,6 +28,7 @@ pub struct UserCreated {
 
 #[derive(Debug, Validate, Serialize, Clone)]
 pub struct User {
+    pub id: usize,
     #[validate(email)]
     pub email: String,
     #[validate(length(min = 1))]
@@ -34,74 +37,5 @@ pub struct User {
     pub is_verified: bool,
     #[validate(regex = "VALID_ROLE")]
     pub role: String,
-}
-
-#[derive(Debug, Validate, Deserialize, Clone)]
-pub struct LoginUser {
-    pub email: String,
-    pub password: String,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct UserLoggedIn {
-    pub username: String,
-    pub jwt: String,
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct Claims {
-    pub sub: String,
-    pub role: String,
-    pub exp: usize,
-}
-
-#[cfg(test)]
-mod tests {
-    use validator::Validate;
-
-    #[test]
-    fn register_user_valid() {
-        let register_user = super::RegisterUser {
-            email: "asdf@asdf.com".to_string(),
-            username: "test".to_string(),
-            password: "ASDFASDF".to_string(),
-            password_repeat: "ASDFASDF".to_string(),
-        };
-
-        assert_eq!(register_user.validate(), Ok(()));
-    }
-
-    #[test]
-    fn register_user_invalid_email() {
-        let register_user = super::RegisterUser {
-            email: "asdfasdf.com".to_string(),
-            username: "test".to_string(),
-            password: "ASDFASDF".to_string(),
-            password_repeat: "ASDFASDF".to_string(),
-        };
-
-        let got_error = match register_user.validate() {
-            Ok(()) => false,
-            Err(_) => true,
-        };
-
-        assert!(got_error);
-    }
-
-    #[test]
-    fn register_user_nonmatching_passwords() {
-        let register_user = super::RegisterUser {
-            email: "asdf@asdf.com".to_string(),
-            username: "test".to_string(),
-            password: "ASDFASDFa".to_string(),
-            password_repeat: "ASDFASDF".to_string(),
-        };
-
-        let got_error = match register_user.validate() {
-            Ok(()) => false,
-            Err(_) => true,
-        };
-
-        assert!(got_error);
-    }
+    pub accessible_articles: HashSet<String>,
 }
