@@ -122,6 +122,31 @@ impl InMemoryHtml {
                 };
             }
 
+            var paywall_unlock_button = document.getElementById("paywall-unlock-button");
+            
+            if (paywall_unlock_button) {
+                paywall_unlock_button.onclick = function () {
+                document.body.style.cursor = 'wait';
+                paywall_unlock_button.disabled = true;
+                    
+            fetch("/purchase/checkout", {
+              method: "POST",
+              body: JSON.stringify({
+                purchase_target: "paywalled.html" 
+              }),
+              headers: {
+                "Content-type": "application/json; charset=UTF-8"
+              }
+            })
+              .then((response) => response.json())
+              .then((url) => window.open(url, '_blank').focus())
+              .finally(() => {
+                document.body.style.cursor = 'default';
+                paywall_unlock_button.disabled = false;
+              });
+                            };
+            }
+
             btn.onclick = function() {
               modal.style.display = "block";
             }

@@ -72,12 +72,15 @@ where
     forward_ready!(service);
 
     fn call(&self, req: ServiceRequest) -> Self::Future {
+        use log::debug;
+
         let srv = self.service.clone();
         async move {
             let target_element = req.match_info().as_str().split("/").last().unwrap();
 
-            if !target_element.contains(".html") && !target_element.contains("user-dashboard"){
+            if !target_element.contains(".html") && !target_element.contains("user-dashboard") && target_element != "checkout" {
                 let session_status = SessionStatus {
+                    user_id: None,
                     auth_level: AuthLevel::NoAuth,
                     username: None,
                 };
@@ -93,28 +96,32 @@ where
 
             let cookie_result = session.get::<String>("session");
 
-            let (has_access, has_paid, is_admin, username) = match cookie_result {
+            let (has_access, has_paid, is_admin, username, user_id) = match cookie_result {
                 Ok(cookie_option) => authorize_with_cookie(cookie_option, target_hash).await,
-                Err(_) => (false, false, false, None),
+                Err(_) => (false, false, false, None, None),
             };
 
             let auth_status = if has_access && is_admin {
                 SessionStatus {
+                    user_id: Some(user_id.unwrap()),
                     auth_level: AuthLevel::AdminAuth,
                     username: Some(username.unwrap()),
                 }
             } else if has_access && has_paid {
                 SessionStatus {
+                    user_id: Some(user_id.unwrap()),
                     auth_level: AuthLevel::PaidAuth,
                     username: Some(username.unwrap()),
                 }
             } else if has_access {
                 SessionStatus {
+                    user_id: Some(user_id.unwrap()),
                     auth_level: AuthLevel::UserUnconfirmed,
                     username: Some(username.unwrap()),
                 }
             } else {
                 SessionStatus {
+                    user_id: None,
                     auth_level: AuthLevel::NoAuth,
                     username: None,
                 }
@@ -163,6 +170,7 @@ impl PartialOrd for AuthLevel {
 }
 
 pub struct SessionStatus {
+    pub user_id: Option<usize>,
     pub auth_level: AuthLevel,
     pub username: Option<String>,
 }
@@ -175,6 +183,7 @@ impl FromRequest for SessionStatus {
         let binding = req.extensions();
         let session_status = binding.get::<SessionStatus>().unwrap();
         let owned_status = SessionStatus {
+            user_id: session_status.user_id.clone(),
             auth_level: session_status.auth_level.clone(),
             username: session_status.username.clone(),
         };
@@ -188,7 +197,7 @@ fn get_secret() -> Vec<u8> {
 
 pub fn get_jwt_for_user(user: User) -> String {
     let expiration_time = Utc::now()
-        .checked_add_signed(Duration::seconds(60))
+        .checked_add_signed(Duration::days(7))
         .expect("invalid timestamp")
         .timestamp();
 
@@ -200,6 +209,7 @@ pub fn get_jwt_for_user(user: User) -> String {
     let user_claims = Claims {
         sub: user.username,
         role: user.role,
+        user_id: user.id,
         accessible_articles: acc_hash,
         exp: expiration_time as usize,
     };
@@ -225,13 +235,12 @@ fn is_admin(claims_role: &str) -> bool {
 pub async fn authorize_with_cookie(
     token_option: Option<String>,
     target_hash: String,
-) -> (bool, bool, bool, Option<String>) {
-    use log::debug;
+) -> (bool, bool, bool, Option<String>, Option<usize>) {
     let token;
 
     match token_option {
         Some(t) => token = t,
-        None => return (false, false, false, None),
+        None => return (false, false, false, None, None),
     }
 
     let decoded = decode::<Claims>(
@@ -241,18 +250,18 @@ pub async fn authorize_with_cookie(
     );
     match decoded {
         Ok(d) => {
-            debug!("{:?}, {:?}", target_hash, d.claims.accessible_articles);
             if is_admin(&d.claims.role) {
-                return (true, true, true, Some(d.claims.sub));
+                return (true, true, true, Some(d.claims.sub), Some(d.claims.user_id));
             } else {
                 return (
                     true,
                     d.claims.accessible_articles.contains(&target_hash),
                     false,
                     Some(d.claims.sub),
+                    Some(d.claims.user_id)
                 );
             }
         }
-        Err(_) => return (false, false, false, None),
+        Err(_) => return (false, false, false, None, None),
     }
 }

@@ -6,7 +6,7 @@ use rust_server::database::{Database, InMemoryDb};
 use rust_server::inmemory_html_server::InMemoryHtml;
 use rust_server::routes::{
     get_login, get_logout_user, get_register, get_user_dashboard, get_user_dashboard_template,
-    html_files, index, put_login_user, put_register_user, static_files, redirect_to_stripe_checkout,
+    html_files, index, put_login_user, put_register_user, static_files, stripe_checkout,
     stripe_webhook_add_article
 };
 use rust_server::security::{AuthCheck, make_session_middleware};
@@ -51,7 +51,7 @@ async fn main() -> std::io::Result<()> {
             .route("/auth/register-user", post().to(put_register_user))
             .route("/auth/login-user", post().to(put_login_user))
             .route("/auth/logout-user", get().to(get_logout_user))
-            .route("/checkout", get().to(redirect_to_stripe_checkout))
+            .route("/purchase/checkout", post().to(stripe_checkout))
             .route("/webhook", post().to(stripe_webhook_add_article))
     }) 
             .bind(("0.0.0.0", 5001))?

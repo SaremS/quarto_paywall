@@ -8,6 +8,7 @@ use actix_web::{
 };
 use askama::Template;
 use serde::{Serialize, Deserialize};
+use futures::stream::{once, StreamExt};
 
 use stripe::{EventObject, EventType, Webhook, WebhookError};
 use stripe::{
@@ -19,7 +20,7 @@ use stripe::CustomerId;
 
 use crate::database::Database;
 use crate::inmemory_html_server::InMemoryHtml;
-use crate::models::{LoginUser, RegisterUser};
+use crate::models::{LoginUser, RegisterUser, PurchaseIntent};
 use crate::security::{AuthLevel, SessionStatus, xor_cipher};
 use crate::templates::{
     LoginSuccessTemplate, LoginTemplate, LogoutSuccessTemplate, RegisterSuccessTemplate,
@@ -64,9 +65,11 @@ pub async fn html_files(
 
     match output {
         Some(html) => {
+
+            let body = once(async move { Ok::<_, actix_web::Error>(Bytes::from(html)) });
             return Ok(HttpResponse::Ok()
                 .content_type("text/html; charset=utf-8")
-                .body(html))
+                .streaming(body))
         }
         None => return Ok(HttpResponse::NotFound().body("Not found")),
     }
@@ -269,7 +272,7 @@ pub async fn stripe_webhook_add_article(
         match event.type_ {
             EventType::AccountUpdated => {
                 if let EventObject::Account(account) = event.data.object {
-                    handle_account_updated(account).unwrap();
+                    handle_account_updated(&account).unwrap();
                 }
             }
             EventType::CheckoutSessionCompleted => {
@@ -294,33 +297,26 @@ fn get_header_value<'b>(req: &'b HttpRequest, key: &'b str) -> Option<&'b str> {
     return req.headers().get(key)?.to_str().ok();
 }
 
-fn handle_account_updated(account: stripe::Account) -> Result<(), WebhookError> {
+fn handle_account_updated(account: &stripe::Account) -> Result<(), WebhookError> {
     println!("Received account updated webhook for account: {:?}", account.id);
     Ok(())
 }
 
-fn handle_checkout_session(session: stripe::CheckoutSession) -> Result<(), WebhookError> {
-    
 
-    println!("Received checkout session completed webhook with client_reference_id: {:?}", session.client_reference_id);
-    Ok(())
+pub async fn stripe_checkout(session_status: SessionStatus, intent: Json<PurchaseIntent>) -> Result<impl Responder> {
+    let user_id = session_status.user_id.unwrap();
+    let target = (intent.into_inner()).purchase_target;
+
+    let reference = ClientReference {user_id, target};
+    let stripe_checkout_url = get_stripe_checkout_url(reference, "Article: Paywalled".to_string(), 250).await;
+    
+    let response = Json(stripe_checkout_url);
+
+    return Ok(response);
 }
 
 
-
-
-pub async fn redirect_to_stripe_checkout() -> Result<impl Responder> {
-    use log::debug;
-    let reference = ClientReference {user_id: 1, target: "paywalled.html".to_string()};
-    let stripe_checkout = get_stripe_checkout_url(reference, "Article: Paywalled".to_string(), 250).await;
-    
-    debug!("{:?}", stripe_checkout.id);
-
-    return Ok(Redirect::to(stripe_checkout.url.unwrap()).see_other()); 
-}
-
-
-async fn get_stripe_checkout_url(client_reference: ClientReference, name: String, price: i64) -> CheckoutSession {
+async fn get_stripe_checkout_url(client_reference: ClientReference, name: String, price: i64) -> String {
     let secret_key = std::env::var("STRIPE_SECRET_KEY").expect("Missing STRIPE_SECRET_KEY in env");
     let client = Client::new(secret_key);
 
@@ -372,5 +368,5 @@ async fn get_stripe_checkout_url(client_reference: ClientReference, name: String
     };
 
 
-    return checkout_session;
+    return checkout_session.url.unwrap();
 }
