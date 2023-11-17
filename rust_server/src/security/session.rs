@@ -6,7 +6,7 @@ use std::{
 use actix_session::{
     config::{BrowserSession, CookieContentSecurity},
     storage::CookieSessionStore,
-    SessionExt, SessionMiddleware,
+    Session, SessionExt, SessionMiddleware,
 };
 use actix_web::{
     cookie::{Key, SameSite},
@@ -72,13 +72,14 @@ where
     forward_ready!(service);
 
     fn call(&self, req: ServiceRequest) -> Self::Future {
-        use log::debug;
-
         let srv = self.service.clone();
         async move {
             let target_element = req.match_info().as_str().split("/").last().unwrap();
 
-            if !target_element.contains(".html") && !target_element.contains("user-dashboard") && target_element != "checkout" {
+            if !target_element.contains(".html")
+                && !target_element.contains("user-dashboard")
+                && target_element != "checkout"
+            {
                 let session_status = SessionStatus {
                     user_id: None,
                     auth_level: AuthLevel::NoAuth,
@@ -96,10 +97,26 @@ where
 
             let cookie_result = session.get::<String>("session");
 
-            let (has_access, has_paid, is_admin, username, user_id) = match cookie_result {
-                Ok(cookie_option) => authorize_with_cookie(cookie_option, target_hash).await,
-                Err(_) => (false, false, false, None, None),
-            };
+
+
+        let cookie_auth_specs = match cookie_result {
+            Ok(cookie_option) => extract_cookie_auth_specs(cookie_option, target_hash).await,
+            Err(_) => CookieAuthSpecs {
+                has_access: false,
+                has_paid: false,
+                is_admin: false,
+                username: None,
+                user_id: None,
+            },
+        };
+
+        let CookieAuthSpecs {
+            has_access,
+            has_paid,
+            is_admin,
+            username,
+            user_id,
+        } = cookie_auth_specs;
 
             let auth_status = if has_access && is_admin {
                 SessionStatus {
@@ -133,6 +150,79 @@ where
             return Ok(res);
         }
         .boxed_local()
+    }
+}
+
+//helper return struct to reduce the risk of accidentally confusing the bools involved
+struct CookieAuthSpecs {
+    has_access: bool,
+    has_paid: bool,
+    is_admin: bool,
+    username: Option<String>,
+    user_id: Option<usize>,
+}
+
+pub async fn session_status_from_session(
+    session_option: Option<Session>,
+    target_element: &str,
+) -> SessionStatus {
+    if let Some(session) = session_option {
+        let target_hash = last_five_chars(&xor_hash(&target_element));
+        let cookie_result = session.get::<String>("session");
+        let cookie_auth_specs = match cookie_result {
+            Ok(cookie_option) => extract_cookie_auth_specs(cookie_option, target_hash).await,
+            Err(_) => CookieAuthSpecs {
+                has_access: false,
+                has_paid: false,
+                is_admin: false,
+                username: None,
+                user_id: None,
+            },
+        };
+
+        let CookieAuthSpecs {
+            has_access,
+            has_paid,
+            is_admin,
+            username,
+            user_id,
+        } = cookie_auth_specs;
+
+        let session_status = if has_access && is_admin {
+            SessionStatus {
+                user_id: Some(user_id.unwrap()),
+                auth_level: AuthLevel::AdminAuth,
+                username: Some(username.unwrap()),
+            }
+        } else if has_access && has_paid {
+            SessionStatus {
+                user_id: Some(user_id.unwrap()),
+                auth_level: AuthLevel::PaidAuth,
+                username: Some(username.unwrap()),
+            }
+        } else if has_access {
+            SessionStatus {
+                user_id: Some(user_id.unwrap()),
+                auth_level: AuthLevel::UserUnconfirmed,
+                username: Some(username.unwrap()),
+            }
+        } else {
+            SessionStatus {
+                user_id: None,
+                auth_level: AuthLevel::NoAuth,
+                username: None,
+            }
+        };
+
+        return session_status;
+    } else {
+        let session_status = SessionStatus {
+            user_id: None,
+            auth_level: AuthLevel::NoAuth,
+            username: None,
+        };
+
+        return session_status;
     }
 }
 
@@ -232,17 +322,23 @@ fn is_admin(claims_role: &str) -> bool {
     return claims_role == Role::Admin;
 }
 
-pub async fn authorize_with_cookie(
+async fn extract_cookie_auth_specs (
     token_option: Option<String>,
     target_hash: String,
-) -> (bool, bool, bool, Option<String>, Option<usize>) {
+) -> CookieAuthSpecs {
     let token;
-
     match token_option {
         Some(t) => token = t,
-        None => return (false, false, false, None, None),
-    }
-
+        None => {
+            return CookieAuthSpecs {
+                has_access: false,
+                has_paid: false,
+                is_admin: false,
+                username: None,
+                user_id: None,
+            }
+        }
+    };
     let decoded = decode::<Claims>(
         &token,
         &DecodingKey::from_secret(&get_secret()),
@@ -251,17 +347,31 @@ pub async fn authorize_with_cookie(
     match decoded {
         Ok(d) => {
             if is_admin(&d.claims.role) {
-                return (true, true, true, Some(d.claims.sub), Some(d.claims.user_id));
+                return CookieAuthSpecs {
+                    has_access: true,
+                    has_paid: true,
+                    is_admin: true,
+                    username: Some(d.claims.sub),
+                    user_id: Some(d.claims.user_id),
+                };
             } else {
-                return (
-                    true,
-                    d.claims.accessible_articles.contains(&target_hash),
-                    false,
-                    Some(d.claims.sub),
-                    Some(d.claims.user_id)
-                );
+                return CookieAuthSpecs {
+                    has_access: true,
+                    has_paid: d.claims.accessible_articles.contains(&target_hash),
+                    is_admin: false,
+                    username: Some(d.claims.sub),
+                    user_id: Some(d.claims.user_id),
+                };
             }
         }
-        Err(_) => return (false, false, false, None, None),
+        Err(_) => {
+            return CookieAuthSpecs {
+                has_access: false,
+                has_paid: false,
+                is_admin: false,
+                username: None,
+                user_id: None,
+            };
+        }
     }
 }
