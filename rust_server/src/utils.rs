@@ -217,3 +217,7 @@ impl AdvancedDeletable for Vec<Node> {
         return result;
     }
 }
+
+pub fn last_five_chars(s: &str) -> String {
+    s.chars().rev().take(5).collect::<String>().chars().rev().collect()
+}

@@ -3,21 +3,47 @@ use scrypt::{
     Scrypt,
 };
 
-pub fn get_hashed_password(password: &str) -> String {
+pub fn get_hash(hashable: &str) -> String {
     let salt = SaltString::generate(&mut OsRng);
 
-    let password_hash = Scrypt
-        .hash_password(password.as_bytes(), &salt)
+    let hash = Scrypt
+        .hash_password(hashable.as_bytes(), &salt)
         .unwrap()
         .to_string();
 
-    return password_hash;
+    return hash;
 }
 
-pub fn verify_password(password: &str, password_hash: &str) -> bool {
-    let parsed_hash = PasswordHash::new(password_hash).unwrap();
+pub fn get_hash_fixed_salt(hashable: &str) -> String {
+    let salt = SaltString::from_b64(&"ASDF").unwrap();
+
+    let hash = Scrypt
+        .hash_password(hashable.as_bytes(), &salt)
+        .unwrap()
+        .to_string();
+
+    return hash;
+}
+
+pub fn verify_hash(hashable: &str, hash: &str) -> bool {
+    let parsed_hash = PasswordHash::new(hash).unwrap();
 
     return Scrypt
-        .verify_password(password.as_bytes(), &parsed_hash)
+        .verify_password(hashable.as_bytes(), &parsed_hash)
         .is_ok();
+}
+
+pub fn xor_hash(s: &str) -> String {
+    /*
+    Trivial hashing to create unique identifiers that don't need to be secure.
+    */
+    let mut hash = 0u8;
+    for byte in s.bytes() {
+        hash ^= byte;
+    }
+    return format!("{:02x}", hash);
+}
+
+pub fn xor_cipher(input: &str, key: u8) -> String {
+    return input.chars().map(|c| (c as u8 ^ key) as char).collect();
 }
