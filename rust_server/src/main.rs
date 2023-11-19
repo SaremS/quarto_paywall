@@ -16,6 +16,8 @@ use rust_server::models::RegisterUser;
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     let db_base = InMemoryDb::new();
+
+    //TODO: Just for testing - remove later on!!!
     let admin_user = RegisterUser {
         email: "admin@admin.com".to_string(),
         username: "admin".to_string(),
