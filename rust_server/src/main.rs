@@ -5,16 +5,19 @@ use actix_web::{middleware::Logger, web::{Data, get, post}, App, HttpServer};
 use rust_server::database::{Database, InMemoryDb};
 use rust_server::inmemory_html_server::InMemoryHtml;
 use rust_server::routes::{
-    get_login, get_logout_user, get_register, get_user_dashboard, get_user_dashboard_template,
-    html_files, index, put_login_user, put_register_user, static_files, stripe_checkout,
-    stripe_webhook_add_article
+    auth::{get_login, get_logout_user, get_register, get_user_dashboard, get_user_dashboard_template,
+    put_login_user, put_register_user},
+    purchase::{stripe_checkout, stripe_webhook_add_article},
+    static_files::{html_files, index, static_files}
 };
-use rust_server::security::{AuthCheck, make_session_middleware};
+use rust_server::security::make_session_middleware;
 use rust_server::models::RegisterUser;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     let db_base = InMemoryDb::new();
+
+    //TODO: Just for testing - remove later on!!!
     let admin_user = RegisterUser {
         email: "admin@admin.com".to_string(),
         username: "admin".to_string(),
@@ -34,7 +37,6 @@ async fn main() -> std::io::Result<()> {
         App::new()
             .app_data(db.clone())
             .app_data(in_memory_html.clone())
-            .wrap(AuthCheck::new())
             .wrap(Logger::default())
             .wrap(make_session_middleware())
             .route("/", get().to(index))

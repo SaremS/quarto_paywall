@@ -59,7 +59,7 @@ impl Database for InMemoryDb {
         local_db.insert(created_user.email.clone(), created_user.clone());
         local_id_index.insert(new_id, created_user.email.clone());
 
-        let token = crate::security::get_jwt_for_user((created_user).clone());
+        let token = crate::security::get_jwt_for_user(&created_user);
 
         let user_created = UserCreated {
             username: created_user.username.clone(),
@@ -102,7 +102,7 @@ impl Database for InMemoryDb {
         local_db.insert(created_user.email.clone(), created_user.clone());
         local_id_index.insert(new_id, created_user.email.clone());
 
-        let token = crate::security::get_jwt_for_user((created_user).clone());
+        let token = crate::security::get_jwt_for_user(&created_user);
 
         let user_created = UserCreated {
             username: created_user.username.clone(),
@@ -126,7 +126,7 @@ impl Database for InMemoryDb {
             return Err(AuthenticationError::InvalidCredentialsError);
         }
 
-        let token = crate::security::get_jwt_for_user((*user).clone());
+        let token = crate::security::get_jwt_for_user(user);
         let user_logged_in = UserLoggedIn {
             username: user.username.clone(),
             jwt: token,
