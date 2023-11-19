@@ -3,36 +3,38 @@ use std::{borrow::Borrow, path::PathBuf};
 use actix_files as fs;
 use actix_session::Session;
 use actix_web::{
-    web::{Bytes, Data, Json, Redirect},
-    HttpRequest, HttpResponse, Responder, Result
+    web::{Bytes, Data, Json},
+    HttpRequest, HttpResponse, Responder, Result,
 };
 use askama::Template;
-use serde::{Serialize, Deserialize};
-use futures::stream::{once, StreamExt};
+use futures::stream::once;
+use serde::{Deserialize, Serialize};
 
-use stripe::{EventObject, EventType, Webhook, WebhookError};
 use stripe::{
     CheckoutSession, CheckoutSessionMode, Client, CreateCheckoutSession,
-    CreateCheckoutSessionLineItems, CreateCustomer, CreatePrice, CreateProduct, Currency, Customer,
-    Expandable, IdOrCreate, Price, Product,
+    CreateCheckoutSessionLineItems, CreatePrice, CreateProduct, Currency, IdOrCreate, Price,
+    Product,
 };
-use stripe::CustomerId;
+use stripe::{EventObject, EventType, Webhook, WebhookError};
 
 use crate::database::Database;
 use crate::inmemory_html_server::InMemoryHtml;
-use crate::models::{LoginUser, RegisterUser, PurchaseIntent};
-use crate::security::{AuthLevel, SessionStatus, xor_cipher};
+use crate::models::{AuthLevel, LoginUser, PurchaseIntent, RegisterUser};
+use crate::security::{session_status_from_session, xor_cipher};
 use crate::templates::{
     LoginSuccessTemplate, LoginTemplate, LogoutSuccessTemplate, RegisterSuccessTemplate,
     RegisterTemplate, UberTemplate, UserDashboardTemplate,
 };
 
 pub async fn index(
+    req: HttpRequest,
     in_memory_html: Data<InMemoryHtml>,
-    session_status: SessionStatus,
+    session: Session,
 ) -> Result<impl Responder> {
+    let session_status = session_status_from_session(&session, &req).await;
+
     let output = in_memory_html
-        .get("index.html".to_string(), session_status)
+        .get("index.html", &session_status)
         .await;
 
     match output {
@@ -57,25 +59,26 @@ pub async fn static_files(req: HttpRequest) -> Result<fs::NamedFile> {
 pub async fn html_files(
     req: HttpRequest,
     in_memory_html: Data<InMemoryHtml>,
-    session_status: SessionStatus,
+    session: Session,
 ) -> Result<impl Responder> {
+    let session_status = session_status_from_session(&session, &req).await;
     let path: String = req.match_info().query("filename").parse().unwrap();
 
-    let output = in_memory_html.get(path, session_status).await;
+    let output = in_memory_html.get(&path, &session_status).await;
 
     match output {
         Some(html) => {
-
             let body = once(async move { Ok::<_, actix_web::Error>(Bytes::from(html)) });
             return Ok(HttpResponse::Ok()
                 .content_type("text/html; charset=utf-8")
-                .streaming(body))
+                .streaming(body));
         }
         None => return Ok(HttpResponse::NotFound().body("Not found")),
     }
 }
 
-pub async fn get_user_dashboard(session_status: SessionStatus) -> Result<impl Responder> {
+pub async fn get_user_dashboard(req: HttpRequest, session: Session) -> Result<impl Responder> {
+    let session_status = session_status_from_session(&session, &req).await;
     let auth_level = session_status.auth_level;
 
     let content;
@@ -102,7 +105,12 @@ pub async fn get_user_dashboard(session_status: SessionStatus) -> Result<impl Re
     return Ok(response);
 }
 
-pub async fn get_user_dashboard_template(session_status: SessionStatus) -> Result<impl Responder> {
+pub async fn get_user_dashboard_template(
+    req: HttpRequest,
+    session: Session,
+) -> Result<impl Responder> {
+    let session_status = session_status_from_session(&session, &req).await;
+
     let content;
 
     if session_status.auth_level > AuthLevel::NoAuth {
@@ -124,23 +132,6 @@ pub async fn get_user_dashboard_template(session_status: SessionStatus) -> Resul
         .body(content);
 
     return Ok(response);
-}
-
-pub async fn get_paywalled_content(
-    req: HttpRequest,
-    session_status: SessionStatus,
-) -> Result<fs::NamedFile> {
-    let mut path;
-    let filename: PathBuf = req.match_info().query("filename").parse().unwrap();
-
-    if session_status.auth_level > AuthLevel::NoAuth {
-        path = PathBuf::from("../paywall_blog/paywalled/");
-        path.push(filename);
-    } else {
-        path = PathBuf::from("./templates/paywall.html");
-    }
-
-    return Ok(fs::NamedFile::open(path)?);
 }
 
 pub async fn get_register() -> Result<impl Responder> {
@@ -254,7 +245,7 @@ pub async fn get_logout_user(session: Session) -> Result<impl Responder> {
 #[derive(Serialize, Deserialize, Debug)]
 struct ClientReference {
     user_id: usize,
-    target: String
+    target: String,
 }
 
 //https://github.com/arlyon/async-stripe/blob/master/examples/webhook-actix.rs
@@ -266,9 +257,11 @@ pub async fn stripe_webhook_add_article(
     let payload_str = std::str::from_utf8(payload.borrow()).unwrap();
     let stripe_signature = get_header_value(&req, "Stripe-Signature").unwrap_or_default();
 
-    let stripe_endpoint_key = std::env::var("STRIPE_ENDPOINT_KEY").expect("Missing STRIPE_ENDPOINT_KEY in env");
+    let stripe_endpoint_key =
+        std::env::var("STRIPE_ENDPOINT_KEY").expect("Missing STRIPE_ENDPOINT_KEY in env");
 
-    if let Ok(event) = Webhook::construct_event(payload_str, stripe_signature, &stripe_endpoint_key) {
+    if let Ok(event) = Webhook::construct_event(payload_str, stripe_signature, &stripe_endpoint_key)
+    {
         match event.type_ {
             EventType::AccountUpdated => {
                 if let EventObject::Account(account) = event.data.object {
@@ -278,8 +271,14 @@ pub async fn stripe_webhook_add_article(
             EventType::CheckoutSessionCompleted => {
                 if let EventObject::CheckoutSession(session) = event.data.object {
                     let reference_json = xor_cipher(&session.client_reference_id.unwrap(), 123);
-                    let client_reference: ClientReference = serde_json::from_str(&reference_json).unwrap();
-                    let res = db.add_accessible_article_to_id(client_reference.user_id.clone(), client_reference.target.clone()).await;
+                    let client_reference: ClientReference =
+                        serde_json::from_str(&reference_json).unwrap();
+                    let _ = db
+                        .add_accessible_article_to_id(
+                            client_reference.user_id.clone(),
+                            client_reference.target.clone(),
+                        )
+                        .await;
                 }
             }
             _ => {
@@ -298,25 +297,36 @@ fn get_header_value<'b>(req: &'b HttpRequest, key: &'b str) -> Option<&'b str> {
 }
 
 fn handle_account_updated(account: &stripe::Account) -> Result<(), WebhookError> {
-    println!("Received account updated webhook for account: {:?}", account.id);
+    println!(
+        "Received account updated webhook for account: {:?}",
+        account.id
+    );
     Ok(())
 }
 
-
-pub async fn stripe_checkout(session_status: SessionStatus, intent: Json<PurchaseIntent>) -> Result<impl Responder> {
+pub async fn stripe_checkout(
+    req: HttpRequest,
+    session: Session,
+    intent: Json<PurchaseIntent>,
+) -> Result<impl Responder> {
+    let session_status = session_status_from_session(&session, &req).await;
     let user_id = session_status.user_id.unwrap();
     let target = (intent.into_inner()).purchase_target;
 
-    let reference = ClientReference {user_id, target};
-    let stripe_checkout_url = get_stripe_checkout_url(reference, "Article: Paywalled".to_string(), 250).await;
-    
+    let reference = ClientReference { user_id, target };
+    let stripe_checkout_url =
+        get_stripe_checkout_url(reference, "Article: Paywalled".to_string(), 250).await;
+
     let response = Json(stripe_checkout_url);
 
     return Ok(response);
 }
 
-
-async fn get_stripe_checkout_url(client_reference: ClientReference, name: String, price: i64) -> String {
+async fn get_stripe_checkout_url(
+    client_reference: ClientReference,
+    name: String,
+    price: i64,
+) -> String {
     let secret_key = std::env::var("STRIPE_SECRET_KEY").expect("Missing STRIPE_SECRET_KEY in env");
     let client = Client::new(secret_key);
 
@@ -366,7 +376,6 @@ async fn get_stripe_checkout_url(client_reference: ClientReference, name: String
 
         CheckoutSession::create(&client, params).await.unwrap()
     };
-
 
     return checkout_session.url.unwrap();
 }

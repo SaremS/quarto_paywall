@@ -39,7 +39,3 @@ pub struct LoginSuccessTemplate {
 pub struct UserDashboardTemplate {
     pub username: String,
 }
-
-#[derive(Template)]
-#[template(path = "paywall.html")]
-pub struct PaywallTemplate {}

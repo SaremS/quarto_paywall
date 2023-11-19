@@ -7,7 +7,7 @@ use html_editor::operation::*;
 use html_editor::{parse, Element};
 
 use crate::utils::{AdvancedDeletable, AdvancedEditable};
-use crate::security::{SessionStatus, AuthLevel};
+use crate::models::{SessionStatus, AuthLevel};
 
 pub struct InMemoryHtml {
     base_dir: String,
@@ -27,15 +27,15 @@ impl InMemoryHtml {
                 let file_path = path.to_string_lossy().to_string();
                 match fs::read_to_string(path) {
                     Ok(contents) => {
-                        let with_paywall_logic = InMemoryHtml::add_paywall_logic(contents);
+                        let with_paywall_logic = InMemoryHtml::add_paywall_logic(&contents);
                         storage_has_paid.insert(file_path.clone(), with_paywall_logic.clone());
 
                         let with_paywall_content_removed =
-                            InMemoryHtml::remove_paywalled_content(with_paywall_logic.clone(), "./templates/paywall.html".to_string());
+                            InMemoryHtml::remove_paywalled_content(&(with_paywall_logic.clone()), "./paywall/paywall.html");
                         storage_has_auth.insert(file_path.clone(), with_paywall_content_removed);
 
                         let with_registerwall_content_removed =
-                            InMemoryHtml::remove_paywalled_content(with_paywall_logic, "./templates/registerwall.html".to_string());
+                            InMemoryHtml::remove_paywalled_content(&with_paywall_logic, "./paywall/registerwall.html");
                         storage_no_auth.insert(file_path, with_registerwall_content_removed);
                     }
                     Err(e) => {
@@ -52,7 +52,7 @@ impl InMemoryHtml {
         };
     }
 
-    pub async fn get(&self, key: String, session_status: SessionStatus) -> Option<String> {
+    pub async fn get(&self, key: &str, session_status: &SessionStatus) -> Option<String> {
         let full_key = format!("{}/{}", self.base_dir, key);
 
         debug!("HTML from memory: {}", full_key);
@@ -70,13 +70,13 @@ impl InMemoryHtml {
         return result;
     }
 
-    fn add_paywall_logic(html: String) -> String {
+    fn add_paywall_logic(html: &str) -> String {
         let with_scripts = InMemoryHtml::add_script_links(html);
-        let with_modal = InMemoryHtml::add_login_modal(with_scripts);
-        return InMemoryHtml::add_login_logic(with_modal);
+        let with_modal = InMemoryHtml::add_login_modal(&with_scripts);
+        return InMemoryHtml::add_login_logic(&with_modal);
     }
 
-    fn add_script_links(html: String) -> String {
+    fn add_script_links(html: &str) -> String {
         let htmx_tag =
             r#"<script src="https://unpkg.com/htmx.org@1.9.8" crossorigin="anonymous"></script>"#;
         let htmxj_tag = r#"<script src="https://unpkg.com/htmx.org/dist/ext/json-enc.js" crossorigin></script>"#;
@@ -84,7 +84,7 @@ impl InMemoryHtml {
         let htmx_node = parse(htmx_tag).unwrap()[0].clone();
         let htmxj_node = parse(htmxj_tag).unwrap()[0].clone();
 
-        let mut html_doc = parse(&html).unwrap();
+        let mut html_doc = parse(html).unwrap();
 
         let result = html_doc
             .insert_to(&Selector::from("head"), htmx_node)
@@ -95,7 +95,7 @@ impl InMemoryHtml {
         return String::from(result);
     }
 
-    fn add_login_logic(html: String) -> String {
+    fn add_login_logic(html: &str) -> String {
         // Create a new node to append
         let login_button_html = r#"
         <li class="nav-item">
@@ -179,7 +179,7 @@ impl InMemoryHtml {
         return String::from(result);
     }
 
-    fn add_login_modal(html: String) -> String {
+    fn add_login_modal(html: &str) -> String {
         let login_modal = r#"
             <div id="user-modal" class="modal">
                 <!-- Modal content -->
@@ -244,7 +244,7 @@ impl InMemoryHtml {
         return String::from(result);
     }
 
-    fn remove_paywalled_content(html: String, wall_filepath: String) -> String {
+    fn remove_paywalled_content(html: &str, wall_filepath: &str) -> String {
         let mut html_doc = parse(&html).unwrap();
 
         let selectable = html_doc.query_mut(&Selector::from("main"));
@@ -253,7 +253,7 @@ impl InMemoryHtml {
             Some(el) => {
                 if let Some(_) = el.query(&Selector::from(".PAYWALLED")) {
                     el.delete_all_children_after_selector(&Selector::from(".PAYWALLED"));
-                    InMemoryHtml::append_paywall(el, wall_filepath);
+                    InMemoryHtml::append_paywall_inplace(el, wall_filepath);
                 }
                 return String::from(html_doc.html());
             }
@@ -263,14 +263,12 @@ impl InMemoryHtml {
         }
     }
 
-    fn append_paywall(html_doc: &mut Element, wall_filepath: String) -> &mut Element {
+    fn append_paywall_inplace(html_doc: &mut Element, wall_filepath: &str) {
         let paywall_html = fs::read_to_string(wall_filepath).unwrap();
         let paywall_node = parse(&paywall_html).unwrap()[0].clone();
 
-        let result = html_doc
+        html_doc
             .insert_to(&Selector::from("main"), paywall_node)
             .trim();
-
-        return result;
     }
 }
