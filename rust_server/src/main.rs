@@ -5,11 +5,11 @@ use actix_web::{middleware::Logger, web::{Data, get, post}, App, HttpServer};
 use rust_server::database::{Database, InMemoryDb};
 use rust_server::inmemory_html_server::InMemoryHtml;
 use rust_server::routes::{
-    get_login, get_logout_user, get_register, get_user_dashboard, get_user_dashboard_template,
-    html_files, index, put_login_user, put_register_user, static_files, stripe_checkout,
-    stripe_webhook_add_article
+    auth::{get_login, get_logout_user, get_register, get_user_dashboard, get_user_dashboard_template,
+    put_login_user, put_register_user},
+    purchase::{stripe_checkout, stripe_webhook_add_article},
+    static_files::{html_files, index, static_files}
 };
-
 use rust_server::security::make_session_middleware;
 use rust_server::models::RegisterUser;
 
