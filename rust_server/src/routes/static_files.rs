@@ -9,6 +9,7 @@ use actix_web::{
 use futures::stream::once;
 
 use crate::inmemory_html_server::InMemoryHtml;
+use crate::inmemory_static_files::InMemoryStaticFiles;
 use crate::security::session_status_from_session;
 
 pub async fn index(
@@ -39,6 +40,20 @@ pub async fn static_files(req: HttpRequest) -> Result<fs::NamedFile> {
     let path_suffix: PathBuf = req.match_info().query("filename").parse().unwrap();
     path.push(path_suffix);
     Ok(fs::NamedFile::open(path)?)
+}
+
+pub async fn in_memory_static_files(req: HttpRequest, in_memory_static: Data<InMemoryStaticFiles>) -> Result<impl Responder> {
+    let path: String = req.match_info().query("filename").parse().unwrap();
+    let output = in_memory_static.get(&path).await;
+
+    match output {
+        Some(html) => {
+            return Ok(HttpResponse::Ok()
+                .content_type("text/html; charset=utf-8")
+                .body(html))
+        }
+        None => return Ok(HttpResponse::NotFound().body("Not found")),
+    }
 }
 
 pub async fn html_files(

@@ -4,11 +4,12 @@ use actix_web::{middleware::Logger, web::{Data, get, post}, App, HttpServer};
 
 use rust_server::database::{Database, InMemoryDb};
 use rust_server::inmemory_html_server::InMemoryHtml;
+use rust_server::inmemory_static_files::InMemoryStaticFiles;
 use rust_server::routes::{
     auth::{get_login, get_logout_user, get_register, get_user_dashboard, get_user_dashboard_template,
     put_login_user, put_register_user},
     purchase::{stripe_checkout, stripe_webhook_add_article},
-    static_files::{html_files, index, static_files}
+    static_files::{html_files, index, static_files, in_memory_static_files}
 };
 use rust_server::security::make_session_middleware;
 use rust_server::models::RegisterUser;
@@ -30,6 +31,7 @@ async fn main() -> std::io::Result<()> {
     let db = Data::from(db_arc);
  
     let in_memory_html = Data::new(InMemoryHtml::new("../paywall_blog/_site"));
+    let in_memory_static = Data::new(InMemoryStaticFiles::new("../paywall_blog/_site"));
 
     env_logger::init_from_env(env_logger::Env::new().default_filter_or("debug"));
 
@@ -37,12 +39,15 @@ async fn main() -> std::io::Result<()> {
         App::new()
             .app_data(db.clone())
             .app_data(in_memory_html.clone())
+            .app_data(in_memory_static.clone())
             .wrap(Logger::default())
             .wrap(make_session_middleware())
             .route("/", get().to(index))
             .route("/{filename:[0-9a-zA-Z_\\.-]+\\.(?:js|css|jpg|jpeg|json)$}", get().to(static_files)) //files in main folder
-            .route("/{filename:[0-9a-zA-Z_\\.-]+\\.html$}", get().to(html_files))
-            .route("/{filename:(?:posts|images)\\/[0-9a-zA-Z_\\.-]+\\.(?:js|css|jpg|jpeg|json)$}", get().to(static_files)) //files in sub-folders
+            .route("/{filename:[0-9a-za-z_\\.-]+\\.html$}", get().to(html_files))
+            .route("/{filename:(?:posts|images)\\/[0-9a-za-z_\\.-]+\\.(?:jpg|jpeg|json)$}", get().to(static_files)) //files in sub-folders
+            .route("/{filename:(?:posts|images)\\/[0-9a-za-z_\\.-]+\\.(?:js|css)$}", get().to(in_memory_static_files)) //files in sub-folders
+
             .route("/{filename:(?:posts|images)\\/[0-9a-zA-Z_\\.-]+\\.html$}", get().to(html_files)) //files in sub-folders
             .route("/{filename:site_libs\\/[0-9a-zA-Z_\\.-]+\\/[0-9a-zA-Z_\\.-]+\\.(?:js|css|jpg|jpeg)$}", get().to(static_files)) //styles and packages from quarto
             .route("/{filename:site_libs\\/bootstrap/bootstrap-icons.[0-9a-z\\?]+$}", get().to(static_files))
