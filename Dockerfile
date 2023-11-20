@@ -11,13 +11,12 @@ COPY ./rust_server .
 RUN cargo build --release
 
 # Target image
-FROM debian:trixie-slim
-
-ENV JWT_SECRET=TEST_SECRET
+FROM debian:11
 
 COPY --from=quartofiles ./paywall_blog/_site ./paywall_blog/_site
 COPY --from=server ./target/release/rust_server ./rust_server/rust_server
 COPY --from=server ./templates ./rust_server/templates 
+COPY --from=server ./paywall ./rust_server/paywall
 
 WORKDIR rust_server
 EXPOSE 5001

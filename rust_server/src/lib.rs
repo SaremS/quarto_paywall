@@ -6,4 +6,5 @@ pub mod routes;
 pub mod templates;
 pub mod inmemory_html_server;
 pub mod inmemory_static_files;
+pub mod envvars;
 pub mod utils;
