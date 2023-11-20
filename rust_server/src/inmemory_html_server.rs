@@ -6,14 +6,14 @@ use walkdir::WalkDir;
 use html_editor::operation::*;
 use html_editor::{parse, Element};
 
+use crate::models::{AuthLevel, SessionStatus};
 use crate::utils::{AdvancedDeletable, AdvancedEditable};
-use crate::models::{SessionStatus, AuthLevel};
 
 pub struct InMemoryHtml {
     base_dir: String,
     storage_has_paid: HashMap<String, String>,
     storage_has_auth: HashMap<String, String>,
-    storage_no_auth: HashMap<String, String>
+    storage_no_auth: HashMap<String, String>,
 }
 
 impl InMemoryHtml {
@@ -30,12 +30,17 @@ impl InMemoryHtml {
                         let with_paywall_logic = InMemoryHtml::add_paywall_logic(&contents);
                         storage_has_paid.insert(file_path.clone(), with_paywall_logic.clone());
 
-                        let with_paywall_content_removed =
-                            InMemoryHtml::remove_paywalled_content(&(with_paywall_logic.clone()), "./paywall/paywall.html");
+                        let with_paywall_content_removed = InMemoryHtml::remove_paywalled_content(
+                            &(with_paywall_logic.clone()),
+                            "./paywall/paywall.html",
+                        );
                         storage_has_auth.insert(file_path.clone(), with_paywall_content_removed);
 
                         let with_registerwall_content_removed =
-                            InMemoryHtml::remove_paywalled_content(&with_paywall_logic, "./paywall/registerwall.html");
+                            InMemoryHtml::remove_paywalled_content(
+                                &with_paywall_logic,
+                                "./paywall/registerwall.html",
+                            );
                         storage_no_auth.insert(file_path, with_registerwall_content_removed);
                     }
                     Err(e) => {
@@ -96,74 +101,11 @@ impl InMemoryHtml {
     }
 
     fn add_login_logic(html: &str) -> String {
-        // Create a new node to append
-        let login_button_html = r#"
-        <li class="nav-item">
-            <span class="menu-text">
-                <button class="nav-link" style="border: none; background: none" id="user-modal-button">
-                    User-Area
-                </button>
-            </span>
-        </li>
-        "#;
+        let login_button_html = fs::read_to_string("./paywall/login_button_html.html").unwrap();
+        let login_button_script = fs::read_to_string("./paywall/login_button_script.html").unwrap();
 
-        let login_button_script = r#"
-        <script type='text/javascript'>
-            var modal = document.getElementById("user-modal");
-            var btn = document.getElementById("user-modal-button");
-            var span = document.getElementsByClassName("close")[0];
-
-
-            var paywall_login_button = document.getElementById("paywall-login-button");
-            
-            if (paywall_login_button) {
-                paywall_login_button.onclick = function () {
-                    modal.style.display = "block";
-                };
-            }
-
-            var paywall_unlock_button = document.getElementById("paywall-unlock-button");
-            
-            if (paywall_unlock_button) {
-                paywall_unlock_button.onclick = function () {
-                document.body.style.cursor = 'wait';
-                paywall_unlock_button.disabled = true;
-                    
-            fetch("/purchase/checkout", {
-              method: "POST",
-              body: JSON.stringify({
-                purchase_target: "paywalled.html" 
-              }),
-              headers: {
-                "Content-type": "application/json; charset=UTF-8"
-              }
-            })
-              .then((response) => response.json())
-              .then((url) => window.open(url, '_blank').focus())
-              .finally(() => {
-                document.body.style.cursor = 'default';
-                paywall_unlock_button.disabled = false;
-              });
-                            };
-            }
-
-            btn.onclick = function() {
-              modal.style.display = "block";
-            }
-
-            span.onclick = function() {
-              modal.style.display = "none";
-            }
-
-            window.onclick = function(event) {
-              if (event.target == modal) {
-                modal.style.display = "none";
-              }
-            }
-        </script>"#;
-
-        let button_node = parse(login_button_html).unwrap()[1].clone();
-        let script_node = parse(login_button_script).unwrap()[1].clone();
+        let button_node = parse(&login_button_html).unwrap()[0].clone();
+        let script_node = parse(&login_button_script).unwrap()[0].clone();
         let mut html_doc = parse(&html).unwrap();
 
         let result = html_doc
@@ -180,59 +122,11 @@ impl InMemoryHtml {
     }
 
     fn add_login_modal(html: &str) -> String {
-        let login_modal = r#"
-            <div id="user-modal" class="modal">
-                <!-- Modal content -->
-                <div class="modal-content">
-                    <span class="close">&times;</span>
-                    <div hx-get="/auth/user-dashboard" hx-trigger="load">
-                    </div>
-                </div>
-            </div>
-            "#;
+        let login_modal_html = fs::read_to_string("./paywall/login_modal_html.html").unwrap();
+        let login_modal_style = fs::read_to_string("./paywall/login_modal_style.html").unwrap();
 
-        let modal_style = r#"
-            <style type='text/css'>
-                .modal {
-              display: none; 
-              position: fixed; 
-              z-index: 9999;
-              left: 0;
-              top: 0;
-              width: 100%;
-              height: 100%;
-              overflow: auto; 
-              background-color: rgb(0,0,0);
-              background-color: rgba(0,0,0,0.4); 
-            }
-
-            .modal-content {
-              background-color: #fefefe;
-              margin: 15% auto; 
-              padding: 20px;
-              border: 1px solid #888;
-              width: 80%;
-            }
-
-            .close {
-              color: #aaa;
-              float: right;
-              font-size: 28px;
-              font-weight: bold;
-            }
-
-            .close:hover,
-            .close:focus {
-              color: black;
-              text-decoration: none;
-              cursor: pointer;
-
-            }
-            </style>
-            "#;
-
-        let modal_node = parse(login_modal).unwrap()[1].clone();
-        let style_node = parse(modal_style).unwrap()[1].clone();
+        let modal_node = parse(&login_modal_html).unwrap()[0].clone();
+        let style_node = parse(&login_modal_style).unwrap()[0].clone();
         let mut html_doc = parse(&html).unwrap();
 
         let result = html_doc

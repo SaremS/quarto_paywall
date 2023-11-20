@@ -38,7 +38,7 @@ pub async fn stripe_webhook_add_article(
             }
             EventType::CheckoutSessionCompleted => {
                 if let EventObject::CheckoutSession(session) = event.data.object {
-                    let reference_json = xor_cipher(&session.client_reference_id.unwrap(), 123);
+                    let reference_json = session.client_reference_id.unwrap();
                     let client_reference: ClientReference =
                         serde_json::from_str(&reference_json).unwrap();
                     let _ = db
@@ -133,7 +133,7 @@ async fn get_stripe_checkout_url(
     let checkout_session = {
         let mut params = CreateCheckoutSession::new("http://sarem-seitz.com");
         params.cancel_url = Some("http://sarem-seitz.com");
-        params.client_reference_id = Some(&reference_encoded);
+        params.client_reference_id = Some(&reference);
         params.mode = Some(CheckoutSessionMode::Payment);
         params.line_items = Some(vec![CreateCheckoutSessionLineItems {
             quantity: Some(1),
