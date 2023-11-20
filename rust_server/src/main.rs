@@ -36,7 +36,7 @@ async fn main() -> std::io::Result<()> {
     let in_memory_html = Data::new(InMemoryHtml::new(&env_var_loader.get_path_static_files()));
     let in_memory_static = Data::new(InMemoryStaticFiles::new(&env_var_loader.get_path_static_files()));
 
-    let env_var_data = Data::new(Arc::new(env_var_loader));
+    let env_var_data = Data::from(Arc::new(env_var_loader));
 
     env_logger::init_from_env(env_logger::Env::new().default_filter_or("debug"));
 
