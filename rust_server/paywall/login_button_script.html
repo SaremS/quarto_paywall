@@ -28,7 +28,7 @@
         },
       })
         .then((response) => response.json())
-        .then((url) => window.open(url, "_blank").focus())
+        .then((url) => window.open(url, "_self").focus())
         .finally(() => {
           document.body.style.cursor = "default";
           paywall_unlock_button.disabled = false;
