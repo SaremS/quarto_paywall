@@ -19,7 +19,7 @@ use rust_server::envvars::EnvVarLoader;
 async fn main() -> std::io::Result<()> {
     let env_var_loader = EnvVarLoader::new();
 
-    let db_base = InMemoryDb::new();
+    let db_base = InMemoryDb::new(env_var_loader.get_jwt_secret_key());
 
     //TODO: Just for testing - remove later on!!!
     let admin_user = RegisterUser {

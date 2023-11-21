@@ -44,7 +44,6 @@ pub struct Claims {
     pub sub: String,
     pub role: String,
     pub user_id: usize,
-    pub accessible_articles: Vec<String>,
     pub exp: usize,
 }
 

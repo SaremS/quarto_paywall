@@ -8,20 +8,22 @@ use actix_web::{
 };
 use futures::stream::once;
 
+use crate::database::Database;
+use crate::envvars::EnvVarLoader;
 use crate::inmemory_html_server::InMemoryHtml;
 use crate::inmemory_static_files::InMemoryStaticFiles;
+use crate::models::{AuthLevel, SessionStatus};
 use crate::security::session_status_from_session;
 
 pub async fn index(
-    req: HttpRequest,
     in_memory_html: Data<InMemoryHtml>,
     session: Session,
+    env_var_loader: Data<EnvVarLoader>,
 ) -> Result<impl Responder> {
-    let session_status = session_status_from_session(&session, &req).await;
+    let session_status =
+        session_status_from_session(&session, &env_var_loader.get_jwt_secret_key()).await;
 
-    let output = in_memory_html
-        .get("index.html", &session_status)
-        .await;
+    let output = in_memory_html.get("index.html", &session_status).await;
 
     match output {
         Some(html) => {
@@ -42,7 +44,10 @@ pub async fn static_files(req: HttpRequest) -> Result<fs::NamedFile> {
     Ok(fs::NamedFile::open(path)?)
 }
 
-pub async fn in_memory_static_files(req: HttpRequest, in_memory_static: Data<InMemoryStaticFiles>) -> Result<impl Responder> {
+pub async fn in_memory_static_files(
+    req: HttpRequest,
+    in_memory_static: Data<InMemoryStaticFiles>,
+) -> Result<impl Responder> {
     let path: String = req.match_info().query("filename").parse().unwrap();
     let output = in_memory_static.get(&path).await;
 
@@ -59,9 +64,15 @@ pub async fn in_memory_static_files(req: HttpRequest, in_memory_static: Data<InM
 pub async fn html_files(
     req: HttpRequest,
     in_memory_html: Data<InMemoryHtml>,
+    db: Data<dyn Database>,
     session: Session,
+    env_var_loader: Data<EnvVarLoader>,
 ) -> Result<impl Responder> {
-    let session_status = session_status_from_session(&session, &req).await;
+    let mut session_status =
+        session_status_from_session(&session, &env_var_loader.get_jwt_secret_key()).await;
+
+    inplace_update_auth_to_paid(&mut session_status, db, &req).await;
+
     let path: String = req.match_info().query("filename").parse().unwrap();
 
     let output = in_memory_html.get(&path, &session_status).await;
@@ -74,5 +85,29 @@ pub async fn html_files(
                 .streaming(body));
         }
         None => return Ok(HttpResponse::NotFound().body("Not found")),
+    }
+}
+
+async fn inplace_update_auth_to_paid(
+    session_status: &mut SessionStatus,
+    db: Data<dyn Database>,
+    http_request: &HttpRequest,
+) {
+    if session_status.auth_level == AuthLevel::UserUnconfirmed
+        || session_status.auth_level == AuthLevel::UserConfirmed
+    {
+        let target_article = http_request
+            .match_info()
+            .as_str()
+            .split("/")
+            .last()
+            .unwrap();
+
+        if db
+            .user_id_has_article_access(session_status.user_id.unwrap(), target_article.to_string())
+            .await
+        {
+            session_status.auth_level = AuthLevel::PaidAuth;
+        }
     }
 }

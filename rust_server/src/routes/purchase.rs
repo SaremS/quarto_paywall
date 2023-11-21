@@ -13,22 +13,22 @@ use stripe::{
 use stripe::{EventObject, EventType, Webhook, WebhookError};
 
 use crate::database::Database;
+use crate::envvars::EnvVarLoader;
 use crate::models::{ClientReference, PurchaseIntent};
 use crate::security::session_status_from_session;
-use crate::envvars::EnvVarLoader;
 
 //https://github.com/arlyon/async-stripe/blob/master/examples/webhook-actix.rs
 pub async fn stripe_webhook_add_article(
     req: HttpRequest,
     payload: Bytes,
     db: Data<dyn Database>,
-    env_var_loader: Data<EnvVarLoader>
+    env_var_loader: Data<EnvVarLoader>,
 ) -> Result<impl Responder> {
     let payload_str = std::str::from_utf8(payload.borrow()).unwrap();
     let stripe_signature = get_header_value(&req, "Stripe-Signature").unwrap_or_default();
 
     let stripe_webhook_key = env_var_loader.get_stripe_webhook_key();
-    
+
     if let Ok(event) = Webhook::construct_event(payload_str, stripe_signature, &stripe_webhook_key)
     {
         match event.type_ {
@@ -74,18 +74,29 @@ fn handle_account_updated(account: &stripe::Account) -> Result<(), WebhookError>
 }
 
 pub async fn stripe_checkout(
-    req: HttpRequest,
     session: Session,
     intent: Json<PurchaseIntent>,
-    env_var_loader: Data<EnvVarLoader>
+    env_var_loader: Data<EnvVarLoader>,
 ) -> Result<impl Responder> {
-    let session_status = session_status_from_session(&session, &req).await;
+
+    let session_status =
+        session_status_from_session(&session, &env_var_loader.get_jwt_secret_key()).await;
     let user_id = session_status.user_id.unwrap();
-    let target = (intent.into_inner()).purchase_target;
+
+    let target_fullpath = (intent.into_inner()).purchase_target;
+    let target_domainpath = env_var_loader.get_domain_url() + &target_fullpath;
+
+    let target = target_fullpath.split('/').last().unwrap().to_string();
 
     let reference = ClientReference { user_id, target };
-    let stripe_checkout_url =
-        get_stripe_checkout_url(reference, "Article: Paywalled".to_string(), 250, env_var_loader.get_stripe_secret_key()).await;
+    let stripe_checkout_url = get_stripe_checkout_url(
+        reference,
+        "Article: Paywalled".to_string(),
+        250,
+        env_var_loader.get_stripe_secret_key(),
+        target_domainpath
+    )
+    .await;
 
     let response = Json(stripe_checkout_url);
 
@@ -96,8 +107,10 @@ async fn get_stripe_checkout_url(
     client_reference: ClientReference,
     name: String,
     price: i64,
-    stripe_secret_key: String
+    stripe_secret_key: String,
+    domainpath: String
 ) -> String {
+    use log::debug;
     let client = Client::new(stripe_secret_key);
 
     let product = {
@@ -131,9 +144,12 @@ async fn get_stripe_checkout_url(
 
     let reference = serde_json::to_string(&client_reference).unwrap();
 
+    let success_path = domainpath.clone() + "?success=1";
+    let cancel_path = domainpath + "?success=0";
+
     let checkout_session = {
-        let mut params = CreateCheckoutSession::new("http://sarem-seitz.com");
-        params.cancel_url = Some("http://sarem-seitz.com");
+        let mut params = CreateCheckoutSession::new(&success_path);
+        params.cancel_url = Some(&cancel_path);
         params.client_reference_id = Some(&reference);
         params.mode = Some(CheckoutSessionMode::Payment);
         params.line_items = Some(vec![CreateCheckoutSessionLineItems {
