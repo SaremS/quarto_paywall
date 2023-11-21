@@ -13,7 +13,9 @@ impl EnvVarLoader {
         "ADMIN_PASSWORD",
         "PATH_STATIC_FILES",
         "STRIPE_SECRET_KEY",
-        "STRIPE_WEBHOOK_KEY"
+        "STRIPE_WEBHOOK_KEY",
+        "JWT_SECRET_KEY",
+        "DOMAIN_URL"
     ];
         let mut env_vars: HashMap<String, String> = HashMap::new();
 
@@ -43,6 +45,14 @@ impl EnvVarLoader {
 
     pub fn get_stripe_webhook_key(&self) -> String {
         return self.env_vars.get("STRIPE_WEBHOOK_KEY").unwrap().clone();
+    }
+
+    pub fn get_jwt_secret_key(&self) -> String {
+        return self.env_vars.get("JWT_SECRET_KEY").unwrap().clone();
+    }
+
+    pub fn get_domain_url(&self) -> String {
+        return self.env_vars.get("DOMAIN_URL").unwrap().clone();
     }
 
 }

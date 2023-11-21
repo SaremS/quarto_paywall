@@ -13,13 +13,15 @@ use crate::models::{LoginUser, RegisterUser, User, UserCreated, UserLoggedIn};
 pub struct InMemoryDb {
     db: Arc<Mutex<HashMap<String, User>>>,
     id_index: Arc<Mutex<HashMap<usize, String>>>,
+    jwt_secret: String
 }
 
 impl InMemoryDb {
-    pub fn new() -> InMemoryDb {
+    pub fn new(jwt_secret: String) -> InMemoryDb {
         return InMemoryDb {
             db: Arc::new(Mutex::new(HashMap::new())),
             id_index: Arc::new(Mutex::new(HashMap::new())),
+            jwt_secret
         };
     }
 }
@@ -59,7 +61,7 @@ impl Database for InMemoryDb {
         local_db.insert(created_user.email.clone(), created_user.clone());
         local_id_index.insert(new_id, created_user.email.clone());
 
-        let token = crate::security::get_jwt_for_user(&created_user);
+        let token = crate::security::get_jwt_for_user(&created_user, &self.jwt_secret);
 
         let user_created = UserCreated {
             username: created_user.username.clone(),
@@ -102,7 +104,7 @@ impl Database for InMemoryDb {
         local_db.insert(created_user.email.clone(), created_user.clone());
         local_id_index.insert(new_id, created_user.email.clone());
 
-        let token = crate::security::get_jwt_for_user(&created_user);
+        let token = crate::security::get_jwt_for_user(&created_user, &self.jwt_secret);
 
         let user_created = UserCreated {
             username: created_user.username.clone(),
@@ -126,7 +128,7 @@ impl Database for InMemoryDb {
             return Err(AuthenticationError::InvalidCredentialsError);
         }
 
-        let token = crate::security::get_jwt_for_user(user);
+        let token = crate::security::get_jwt_for_user(user, &self.jwt_secret);
         let user_logged_in = UserLoggedIn {
             username: user.username.clone(),
             jwt: token,
@@ -147,9 +149,9 @@ impl Database for InMemoryDb {
         }
     }
 
-    async fn add_accessible_article_to_id(&self, id: usize, article: String) -> Result<(),()> {
+    async fn add_accessible_article_to_id(&self, id: usize, article: String) -> Result<(), ()> {
         let mut local_db = self.db.lock().await;
-        let local_id_index = self.id_index.lock().await;        
+        let local_id_index = self.id_index.lock().await;
 
         let email_option = local_id_index.get(&id);
 
@@ -161,8 +163,16 @@ impl Database for InMemoryDb {
                 } else {
                     return Err(());
                 }
-            },
+            }
             None => return Err(()),
-        }               
+        }
+    }
+
+    async fn user_id_has_article_access(&self, id: usize, article: String) -> bool {
+        if let Some(user) = self.get_user_by_id(id).await {
+            return user.accessible_articles.contains(&article);
+        } else {
+            return false;
+        }
     }
 }

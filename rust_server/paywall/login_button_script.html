@@ -21,14 +21,14 @@
       fetch("/purchase/checkout", {
         method: "POST",
         body: JSON.stringify({
-          purchase_target: "paywalled.html",
+          purchase_target: window.location.pathname,
         }),
         headers: {
           "Content-type": "application/json; charset=UTF-8",
         },
       })
         .then((response) => response.json())
-        .then((url) => window.open(url, "_blank").focus())
+        .then((url) => window.open(url, "_self").focus())
         .finally(() => {
           document.body.style.cursor = "default";
           paywall_unlock_button.disabled = false;

@@ -1,11 +1,12 @@
 use actix_session::Session;
 use actix_web::{
     web::{Data, Json},
-    HttpRequest, HttpResponse, Responder, Result,
-}; 
+    HttpResponse, Responder, Result,
+};
 use askama::Template;
 
 use crate::database::Database;
+use crate::envvars::EnvVarLoader;
 use crate::models::{AuthLevel, LoginUser, RegisterUser};
 use crate::security::session_status_from_session;
 use crate::templates::{
@@ -13,8 +14,12 @@ use crate::templates::{
     RegisterTemplate, UberTemplate, UserDashboardTemplate,
 };
 
-pub async fn get_user_dashboard(req: HttpRequest, session: Session) -> Result<impl Responder> {
-    let session_status = session_status_from_session(&session, &req).await;
+pub async fn get_user_dashboard(
+    session: Session,
+    env_var_loader: Data<EnvVarLoader>,
+) -> Result<impl Responder> {
+    let session_status =
+        session_status_from_session(&session, &env_var_loader.get_jwt_secret_key()).await;
     let auth_level = session_status.auth_level;
 
     let content;
@@ -42,10 +47,11 @@ pub async fn get_user_dashboard(req: HttpRequest, session: Session) -> Result<im
 }
 
 pub async fn get_user_dashboard_template(
-    req: HttpRequest,
     session: Session,
+    env_var_loader: Data<EnvVarLoader>,
 ) -> Result<impl Responder> {
-    let session_status = session_status_from_session(&session, &req).await;
+    let session_status =
+        session_status_from_session(&session, &env_var_loader.get_jwt_secret_key()).await;
 
     let content;
 
