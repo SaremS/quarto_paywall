@@ -5,13 +5,13 @@ COPY ./paywall_blog ./paywall_blog
 RUN cd paywall_blog && quarto install --no-prompt extension shafayetShafee/bsicons && quarto render
 
 # Build Rust server binary
-FROM rust:1.69 AS server
+FROM rust:1.74-bookworm AS server
 
 COPY ./rust_server .
 RUN cargo build --release
 
 # Target image
-FROM debian:11
+FROM rust:1.74-bookworm
 
 COPY --from=quartofiles ./paywall_blog/_site ./paywall_blog/_site
 COPY --from=server ./target/release/rust_server ./rust_server/rust_server
