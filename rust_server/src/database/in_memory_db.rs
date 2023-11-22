@@ -13,7 +13,7 @@ use crate::models::{LoginUser, RegisterUser, User, UserCreated, UserLoggedIn};
 pub struct InMemoryDb {
     db: Arc<Mutex<HashMap<String, User>>>,
     id_index: Arc<Mutex<HashMap<usize, String>>>,
-    jwt_secret: String
+    jwt_secret: String,
 }
 
 impl InMemoryDb {
@@ -21,7 +21,7 @@ impl InMemoryDb {
         return InMemoryDb {
             db: Arc::new(Mutex::new(HashMap::new())),
             id_index: Arc::new(Mutex::new(HashMap::new())),
-            jwt_secret
+            jwt_secret,
         };
     }
 }
@@ -64,6 +64,8 @@ impl Database for InMemoryDb {
         let token = crate::security::get_jwt_for_user(&created_user, &self.jwt_secret);
 
         let user_created = UserCreated {
+            user_id: new_id,
+            email: created_user.email,
             username: created_user.username.clone(),
             jwt: token,
         };
@@ -107,6 +109,8 @@ impl Database for InMemoryDb {
         let token = crate::security::get_jwt_for_user(&created_user, &self.jwt_secret);
 
         let user_created = UserCreated {
+            user_id: new_id,
+            email: created_user.email,
             username: created_user.username.clone(),
             jwt: token,
         };
@@ -159,6 +163,25 @@ impl Database for InMemoryDb {
             Some(email) => {
                 if let Some(user) = local_db.get_mut(email) {
                     user.accessible_articles.insert(article);
+                    return Ok(());
+                } else {
+                    return Err(());
+                }
+            }
+            None => return Err(()),
+        }
+    }
+
+    async fn confirm_email_for_user_id(&self, id: usize) -> Result<(), ()> {
+        let mut local_db = self.db.lock().await;
+        let local_id_index = self.id_index.lock().await;
+
+        let email_option = local_id_index.get(&id);
+
+        match email_option {
+            Some(email) => {
+                if let Some(user) = local_db.get_mut(email) {
+                    user.is_verified = true;
                     return Ok(());
                 } else {
                     return Err(());
