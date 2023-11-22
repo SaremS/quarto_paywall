@@ -1,10 +1,11 @@
-pub mod errors;
-pub mod models;
 pub mod database;
-pub mod security;
-pub mod routes;
-pub mod templates;
+pub mod envvars;
+pub mod errors;
 pub mod inmemory_html_server;
 pub mod inmemory_static_files;
-pub mod envvars;
+pub mod mail;
+pub mod models;
+pub mod routes;
+pub mod security;
+pub mod templates;
 pub mod utils;
