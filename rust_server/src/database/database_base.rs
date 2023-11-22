@@ -14,4 +14,5 @@ pub trait Database: Send + Sync {
     async fn add_accessible_article_to_id(&self, id: usize, article: String) -> Result<(),()>;
     async fn user_id_has_article_access(&self, id: usize, article: String) -> bool;
     async fn confirm_email_for_user_id(&self, id: usize) -> Result<(),()>;
+    async fn delete_user_by_id(&self, id: usize) -> Result<(),()>;
 }

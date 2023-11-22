@@ -198,4 +198,20 @@ impl Database for InMemoryDb {
             return false;
         }
     }
+
+    async fn delete_user_by_id(&self, id: usize) -> Result<(),()> {
+        let mut local_db = self.db.lock().await;
+        let mut local_id_index = self.id_index.lock().await;
+
+        let email_option = local_id_index.get(&id);
+        
+        match email_option {
+            Some(email) => {
+                local_db.remove(email);
+                local_id_index.remove(&id);
+                return Ok(());
+            },
+            None => {return Err(());}
+        }
+    }
 }
