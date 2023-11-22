@@ -3,6 +3,7 @@ use serde::{Serialize, Deserialize};
 
 pub struct MailEnvVars<'a> {
     pub mail_secret_key: &'a str,
+    pub deletion_secret_key: &'a str,
     pub smtp_mail_address: &'a str,
     pub domain_url: &'a str,
     pub smtp_host: &'a str,
@@ -63,6 +64,12 @@ impl<'a> EmailToSend<'a> {
 
 #[derive(Serialize, Deserialize)]
 pub struct EmailConfirmation {
+    pub user_id: usize,
+    pub exp: usize,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct DeletionConfirmation {
     pub user_id: usize,
     pub exp: usize,
 }

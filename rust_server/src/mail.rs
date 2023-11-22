@@ -5,7 +5,45 @@ use jsonwebtoken::{encode, EncodingKey, Header};
 use lettre::message::header::ContentType;
 use lettre::{Message, SmtpTransport, Transport};
 
-use crate::models::{EmailConfirmation, EmailToSend, MailEnvVars, SmtpCredentials};
+use crate::models::{EmailConfirmation, EmailToSend, MailEnvVars, SmtpCredentials, DeletionConfirmation};
+
+
+
+pub async fn send_deletion_mail<'a>(
+    user_id: &usize,
+    recipient: &str,
+    mail_environment: &'a MailEnvVars<'a>,
+) {
+    let exp = Utc::now()
+        .checked_add_signed(Duration::minutes(30))
+        .expect("invalid timestamp")
+        .timestamp();
+
+    let confirmation = DeletionConfirmation {
+        user_id: user_id.clone(),
+        exp: exp as usize,
+    };
+
+    let token = match encode(
+        &Header::default(),
+        &confirmation,
+        &EncodingKey::from_secret(mail_environment.deletion_secret_key.as_bytes()),
+    ) {
+        Ok(t) => t,
+        Err(_) => panic!(),
+    };
+
+    let deletion_mail = make_deletion_mail(recipient, mail_environment.domain_url, &token);
+    let smtp_credentials = SmtpCredentials::new(
+        mail_environment.smtp_mail_address,
+        mail_environment.smtp_sender_name,
+        mail_environment.smtp_host,
+        mail_environment.smtp_username,
+        mail_environment.smtp_password,
+    );
+
+    send_email(smtp_credentials, deletion_mail).await;
+}
 
 pub async fn send_confirmation_mail<'a>(
     user_id: &usize,
@@ -51,6 +89,22 @@ fn make_confirmation_mail<'a>(
     let confirm_url = domain_url.to_string() + "/confirm-user?token=" + token;
 
     let subject = "Please confirm your email address";
+    let body: String = "Thanks for registering at ".to_string()
+        + domain_url
+        + "! As a last step, please follow this confirmation link: \n"
+        + &confirm_url;
+
+    return EmailToSend::new(recipient_mail, subject, body);
+}
+
+fn make_deletion_mail<'a>(
+    recipient_mail: &'a str,
+    domain_url: &str,
+    token: &str,
+) -> EmailToSend<'a> {
+    let confirm_url = domain_url.to_string() + "/delete-user?token=" + token;
+
+    let subject = "Please confirm your request for account deletion";
     let body: String = "Thanks for registering at ".to_string()
         + domain_url
         + "! As a last step, please follow this confirmation link: \n"
