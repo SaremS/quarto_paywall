@@ -40,23 +40,23 @@ pub async fn send_confirmation_mail<'a>(
         mail_environment.smtp_password,
     );
 
-    send_email(smtp_credentials, confirmation_mail);
+    send_email(smtp_credentials, confirmation_mail).await;
 }
 
 fn make_confirmation_mail<'a>(
-    recipient_mail: &str,
+    recipient_mail: &'a str,
     domain_url: &str,
     token: &str,
 ) -> EmailToSend<'a> {
     let confirm_url = domain_url.to_string() + "/confirm-user?token=" + token;
 
     let subject = "Please confirm your email address";
-    let body = "Thanks for registering at ".to_string()
+    let body: String = "Thanks for registering at ".to_string()
         + domain_url
         + "! As a last step, please follow this confirmation link: \n"
         + &confirm_url;
 
-    return EmailToSend::new(recipient_mail, subject, &body);
+    return EmailToSend::new(recipient_mail, subject, body);
 }
 
 pub async fn send_email<'a>(credentials: SmtpCredentials<'a>, mail: EmailToSend<'a>) {

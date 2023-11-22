@@ -22,6 +22,8 @@ pub struct RegisterUser {
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub struct UserCreated {
+    pub user_id: usize,
+    pub email: String,
     pub username: String,
     pub jwt: String,
 }

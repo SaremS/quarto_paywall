@@ -7,7 +7,8 @@ use askama::Template;
 
 use crate::database::Database;
 use crate::envvars::EnvVarLoader;
-use crate::models::{AuthLevel, LoginUser, RegisterUser};
+use crate::mail::send_confirmation_mail;
+use crate::models::{AuthLevel, LoginUser, MailEnvVars, RegisterUser};
 use crate::security::session_status_from_session;
 use crate::templates::{
     LoginSuccessTemplate, LoginTemplate, LogoutSuccessTemplate, RegisterSuccessTemplate,
@@ -108,12 +109,30 @@ pub async fn put_register_user(
     session: Session,
     user: Json<RegisterUser>,
     db: Data<dyn Database>,
+    env_var_loader: Data<EnvVarLoader>,
 ) -> Result<impl Responder> {
     let create_user_result = db.create_user(user.into_inner()).await;
 
     let result_content;
     match create_user_result {
         Ok(user_created) => {
+            let mail_environment = MailEnvVars {
+                mail_secret_key: &env_var_loader.get_mail_secret_key(),
+                smtp_mail_address: &env_var_loader.get_smtp_mail_address(),
+                domain_url: &env_var_loader.get_domain_url(),
+                smtp_host: &env_var_loader.get_smtp_host(),
+                smtp_sender_name: &env_var_loader.get_smtp_sender_name(),
+                smtp_username: &env_var_loader.get_smtp_username(),
+                smtp_password: &env_var_loader.get_smtp_password(),
+            };
+
+            send_confirmation_mail(
+                &user_created.user_id,
+                &user_created.email,
+                &mail_environment,
+            )
+            .await;
+
             result_content = RegisterSuccessTemplate {
                 username: user_created.username,
             }

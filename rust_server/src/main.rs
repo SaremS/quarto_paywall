@@ -67,7 +67,7 @@ async fn main() -> std::io::Result<()> {
             .route("/auth/logout-user", get().to(get_logout_user))
             .route("/purchase/checkout", post().to(stripe_checkout))
             .route("/purchase/stripe-webhook", post().to(stripe_webhook_add_article))
-            .route("/confirm-user", get.to(confirm_user))
+            .route("/confirm-user", get().to(confirm_user))
     }) 
             .bind(("0.0.0.0", 5001))?
             .run()

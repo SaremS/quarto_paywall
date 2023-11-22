@@ -48,11 +48,11 @@ impl<'a> SmtpCredentials<'a> {
 pub struct EmailToSend<'a> {
     pub recipient_mail: &'a str,
     pub subject: &'a str,
-    pub body: &'a str,
+    pub body: String,
 }
 
 impl<'a> EmailToSend<'a> {
-    pub fn new(recipient_mail: &'a str, subject: &'a str, body: &'a str) -> EmailToSend<'a> {
+    pub fn new(recipient_mail: &'a str, subject: &'a str, body: String) -> EmailToSend<'a> {
         return EmailToSend {
             recipient_mail,
             subject,
