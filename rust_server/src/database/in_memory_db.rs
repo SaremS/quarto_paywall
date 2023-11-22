@@ -168,6 +168,25 @@ impl Database for InMemoryDb {
         }
     }
 
+    async fn confirm_email_for_user_id(&self, id: usize) -> Result<(),()> {
+        let mut local_db = self.db.lock().await;
+        let local_id_index = self.id_index.lock().await;
+
+        let email_option = local_id_index.get(&id);
+
+        match email_option {
+            Some(email) => {
+                if let Some(user) = local_db.get_mut(email) {
+                    user.is_verified = true;
+                    return Ok(());
+                } else { 
+                    return Err(());
+                }
+            }
+            None => return Err(()),
+        }
+    }
+
     async fn user_id_has_article_access(&self, id: usize, article: String) -> bool {
         if let Some(user) = self.get_user_by_id(id).await {
             return user.accessible_articles.contains(&article);

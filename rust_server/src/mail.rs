@@ -1,59 +1,65 @@
+use chrono::{Duration, Utc};
+use log::{error, info};
+
+use jsonwebtoken::{encode, EncodingKey, Header};
 use lettre::message::header::ContentType;
-use lettre::transport::smtp::authentication::Credentials;
 use lettre::{Message, SmtpTransport, Transport};
-use log::{info, error};
 
-pub struct SmtpCredentials<'a> {
-    mail_address: &'a str,
-    sender_name: &'a str,
-    smtp_host: &'a str,
-    username: &'a str,
-    password: &'a str,
+use crate::models::{EmailConfirmation, EmailToSend, MailEnvVars, SmtpCredentials};
+
+pub async fn send_confirmation_mail<'a>(
+    user_id: &usize,
+    recipient: &str,
+    mail_environment: &'a MailEnvVars<'a>,
+) {
+    let exp = Utc::now()
+        .checked_add_signed(Duration::days(1))
+        .expect("invalid timestamp")
+        .timestamp();
+
+    let confirmation = EmailConfirmation {
+        user_id: user_id.clone(),
+        exp: exp as usize,
+    };
+
+    let token = match encode(
+        &Header::default(),
+        &confirmation,
+        &EncodingKey::from_secret(mail_environment.mail_secret_key.as_bytes()),
+    ) {
+        Ok(t) => t,
+        Err(_) => panic!(),
+    };
+
+    let confirmation_mail = make_confirmation_mail(recipient, mail_environment.domain_url, &token);
+    let smtp_credentials = SmtpCredentials::new(
+        mail_environment.smtp_mail_address,
+        mail_environment.smtp_sender_name,
+        mail_environment.smtp_host,
+        mail_environment.smtp_username,
+        mail_environment.smtp_password,
+    );
+
+    send_email(smtp_credentials, confirmation_mail);
 }
 
-impl<'a> SmtpCredentials<'a> {
-    pub fn new(
-        mail_address: &'a str,
-        sender_name: &'a str,
-        smtp_host: &'a str,
-        username: &'a str,
-        password: &'a str,
-    ) -> SmtpCredentials<'a> {
-        return SmtpCredentials {
-            mail_address,
-            sender_name,
-            smtp_host,
-            username,
-            password,
-        };
-    }
+fn make_confirmation_mail<'a>(
+    recipient_mail: &str,
+    domain_url: &str,
+    token: &str,
+) -> EmailToSend<'a> {
+    let confirm_url = domain_url.to_string() + "/confirm-user?token=" + token;
 
-    pub fn get_full_sender(&self) -> String {
-        return self.sender_name.to_owned() + "<" + self.mail_address + ">";
-    }
+    let subject = "Please confirm your email address";
+    let body = "Thanks for registering at ".to_string()
+        + domain_url
+        + "! As a last step, please follow this confirmation link: \n"
+        + &confirm_url;
 
-    pub fn get_lettre_smtp_credentials(&self) -> Credentials {
-        return Credentials::new(self.username.to_owned(), self.password.to_owned());
-    }
+    return EmailToSend::new(recipient_mail, subject, &body);
 }
 
-pub struct MailToSend<'a> {
-    recipient_mail: &'a str,
-    subject: &'a str,
-    body: &'a str,
-}
-
-impl<'a> MailToSend<'a> {
-    pub fn new(recipient_mail: &'a str, subject: &'a str, body: &'a str) -> MailToSend<'a> {
-        return MailToSend {
-            recipient_mail,
-            subject,
-            body,
-        };
-    }
-}
-
-pub async fn send_email<'a>(credentials: SmtpCredentials<'a>, mail: MailToSend<'a>) {
+pub async fn send_email<'a>(credentials: SmtpCredentials<'a>, mail: EmailToSend<'a>) {
     let email = Message::builder()
         .from(credentials.get_full_sender().parse().unwrap())
         .to(mail.recipient_mail.parse().unwrap())
