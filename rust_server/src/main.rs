@@ -7,10 +7,10 @@ use rust_server::inmemory_html_server::InMemoryHtml;
 use rust_server::inmemory_static_files::InMemoryStaticFiles;
 use rust_server::routes::{
     auth::{get_login, get_logout_user, get_register, get_user_dashboard, get_user_dashboard_template,
-    put_login_user, put_register_user},
+    put_login_user, put_register_user, get_delete_user, get_delete_user_confirmed},
     purchase::{stripe_checkout, stripe_webhook_add_article},
     static_files::{html_files, index, static_files, in_memory_static_files},
-    mail::confirm_user
+    mail::{confirm_user, delete_user}
 };
 use rust_server::security::make_session_middleware;
 use rust_server::models::RegisterUser;
@@ -68,6 +68,9 @@ async fn main() -> std::io::Result<()> {
             .route("/purchase/checkout", post().to(stripe_checkout))
             .route("/purchase/stripe-webhook", post().to(stripe_webhook_add_article))
             .route("/confirm-user", get().to(confirm_user))
+            .route("/delete-user", get().to(delete_user))
+            .route("/auth/delete-user", get().to(get_delete_user))
+            .route("/auth/delete-user-confirmed", get().to(get_delete_user_confirmed))
     }) 
             .bind(("0.0.0.0", 5001))?
             .run()

@@ -5,9 +5,9 @@ use jsonwebtoken::{encode, EncodingKey, Header};
 use lettre::message::header::ContentType;
 use lettre::{Message, SmtpTransport, Transport};
 
-use crate::models::{EmailConfirmation, EmailToSend, MailEnvVars, SmtpCredentials, DeletionConfirmation};
-
-
+use crate::models::{
+    DeletionConfirmation, EmailConfirmation, EmailToSend, MailEnvVars, SmtpCredentials,
+};
 
 pub async fn send_deletion_mail<'a>(
     user_id: &usize,
