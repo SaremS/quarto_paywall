@@ -39,3 +39,11 @@ pub struct LoginSuccessTemplate {
 pub struct UserDashboardTemplate {
     pub username: String,
 }
+
+#[derive(Template)]
+#[template(path = "delete_user.html")]
+pub struct DeleteUserTemplate {}
+
+#[derive(Template)]
+#[template(path = "delete_user_confirmed.html")]
+pub struct DeleteUserConfirmedTemplate {}

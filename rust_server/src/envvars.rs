@@ -59,6 +59,11 @@ impl EnvVarLoader {
         return self.env_vars.get("JWT_SECRET_KEY").unwrap().clone();
     }
 
+    //TODO: Use separate deletion key
+    pub fn get_deletion_secret_key(&self) -> String {
+        return self.env_vars.get("JWT_SECRET_KEY").unwrap().clone();
+    }
+
     pub fn get_domain_url(&self) -> String {
         return self.env_vars.get("DOMAIN_URL").unwrap().clone();
     }

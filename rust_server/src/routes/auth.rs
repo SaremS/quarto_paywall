@@ -7,12 +7,13 @@ use askama::Template;
 
 use crate::database::Database;
 use crate::envvars::EnvVarLoader;
-use crate::mail::send_confirmation_mail;
+use crate::mail::{send_confirmation_mail, send_deletion_mail};
 use crate::models::{AuthLevel, LoginUser, MailEnvVars, RegisterUser};
 use crate::security::session_status_from_session;
 use crate::templates::{
-    LoginSuccessTemplate, LoginTemplate, LogoutSuccessTemplate, RegisterSuccessTemplate,
-    RegisterTemplate, UberTemplate, UserDashboardTemplate,
+    DeleteUserConfirmedTemplate, DeleteUserTemplate, LoginSuccessTemplate, LoginTemplate,
+    LogoutSuccessTemplate, RegisterSuccessTemplate, RegisterTemplate, UberTemplate,
+    UserDashboardTemplate,
 };
 
 pub async fn get_user_dashboard(
@@ -118,6 +119,7 @@ pub async fn put_register_user(
         Ok(user_created) => {
             let mail_environment = MailEnvVars {
                 mail_secret_key: &env_var_loader.get_mail_secret_key(),
+                deletion_secret_key: &env_var_loader.get_deletion_secret_key(),
                 smtp_mail_address: &env_var_loader.get_smtp_mail_address(),
                 domain_url: &env_var_loader.get_domain_url(),
                 smtp_host: &env_var_loader.get_smtp_host(),
@@ -199,6 +201,56 @@ pub async fn get_logout_user(session: Session) -> Result<impl Responder> {
     let response = HttpResponse::Ok()
         .content_type("text/html; charset=utf-8")
         .body(login_template);
+
+    return Ok(response);
+}
+
+pub async fn get_delete_user() -> Result<impl Responder> {
+    let delete_user_template = DeleteUserTemplate {}.render().unwrap();
+
+    let response = HttpResponse::Ok()
+        .content_type("text/html; charset=utf-8")
+        .body(delete_user_template);
+
+    return Ok(response);
+}
+
+pub async fn get_delete_user_confirmed(
+    session: Session,
+    db: Data<dyn Database>,
+    env_var_loader: Data<EnvVarLoader>
+) -> Result<impl Responder> {
+    let session_status =
+        session_status_from_session(&session, &env_var_loader.get_jwt_secret_key()).await;
+    
+
+    let mail_environment = MailEnvVars {
+        mail_secret_key: &env_var_loader.get_mail_secret_key(),
+        deletion_secret_key: &env_var_loader.get_deletion_secret_key(),
+        smtp_mail_address: &env_var_loader.get_smtp_mail_address(),
+        domain_url: &env_var_loader.get_domain_url(),
+        smtp_host: &env_var_loader.get_smtp_host(),
+        smtp_sender_name: &env_var_loader.get_smtp_sender_name(),
+        smtp_username: &env_var_loader.get_smtp_username(),
+        smtp_password: &env_var_loader.get_smtp_password(),
+    };
+
+    let user_id = session_status.user_id.unwrap();
+    let user = db.get_user_by_id(user_id).await;
+    let email = user.unwrap().email;
+
+    send_deletion_mail(
+        &user_id,
+        &email,
+        &mail_environment,
+    )
+    .await;
+
+    let delete_user_template_confirmed = DeleteUserConfirmedTemplate {}.render().unwrap();
+
+    let response = HttpResponse::Ok()
+        .content_type("text/html; charset=utf-8")
+        .body(delete_user_template_confirmed);
 
     return Ok(response);
 }
