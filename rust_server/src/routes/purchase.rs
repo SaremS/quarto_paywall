@@ -1,4 +1,5 @@
 use std::borrow::Borrow;
+use log::info;
 
 use actix_session::Session;
 use actix_web::{
@@ -110,7 +111,6 @@ async fn get_stripe_checkout_url(
     stripe_secret_key: String,
     domainpath: String
 ) -> String {
-    use log::debug;
     let client = Client::new(stripe_secret_key);
 
     let product = {
@@ -135,7 +135,7 @@ async fn get_stripe_checkout_url(
         Price::create(&client, create_price).await.unwrap()
     };
 
-    println!(
+    info!(
         "created a product {:?} at price {} {}",
         product.name.unwrap(),
         price.unit_amount.unwrap() / 100,
