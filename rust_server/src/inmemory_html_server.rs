@@ -28,20 +28,33 @@ impl InMemoryHtml {
                 match fs::read_to_string(path) {
                     Ok(contents) => {
                         let with_paywall_logic = InMemoryHtml::add_paywall_logic(&contents);
-                        storage_has_paid.insert(file_path.clone(), with_paywall_logic.clone().replace("{{ nav-button-text }}", "User-Area"));
+                        storage_has_paid.insert(
+                            file_path.clone(),
+                            with_paywall_logic
+                                .clone()
+                                .replace("{{ nav-button-text }}", "User-Area"),
+                        );
 
                         let with_paywall_content_removed = InMemoryHtml::remove_paywalled_content(
                             &(with_paywall_logic.clone()),
                             "./paywall/paywall.html",
                         );
-                        storage_has_auth.insert(file_path.clone(), with_paywall_content_removed.replace("{{ nav-button-text }}", "User-Area"));
+                        storage_has_auth.insert(
+                            file_path.clone(),
+                            with_paywall_content_removed
+                                .replace("{{ nav-button-text }}", "User-Area"),
+                        );
 
                         let with_registerwall_content_removed =
                             InMemoryHtml::remove_paywalled_content(
                                 &with_paywall_logic,
                                 "./paywall/registerwall.html",
                             );
-                        storage_no_auth.insert(file_path, with_registerwall_content_removed.replace("{{ nav-button-text }}", "Login"));
+                        storage_no_auth.insert(
+                            file_path,
+                            with_registerwall_content_removed
+                                .replace("{{ nav-button-text }}", "Login"),
+                        );
                     }
                     Err(e) => {
                         error!("Error reading file {:?}: {}", path, e);
