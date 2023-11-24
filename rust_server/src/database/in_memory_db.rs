@@ -8,7 +8,7 @@ use validator::Validate;
 use crate::database::Database;
 use crate::errors::AuthenticationError;
 use crate::errors::SignupError;
-use crate::models::{LoginUser, RegisterUser, User, UserCreated, UserLoggedIn};
+use crate::models::{LoginUser, RegisterUser, User, UserCreated, UserLoggedIn, PaywallArticle};
 
 pub struct InMemoryDb {
     db: Arc<Mutex<HashMap<String, User>>>,
@@ -153,7 +153,7 @@ impl Database for InMemoryDb {
         }
     }
 
-    async fn add_accessible_article_to_id(&self, id: usize, article: String) -> Result<(), ()> {
+    async fn add_accessible_article_to_id(&self, id: usize, article: PaywallArticle) -> Result<(), ()> {
         let mut local_db = self.db.lock().await;
         let local_id_index = self.id_index.lock().await;
 
@@ -191,29 +191,37 @@ impl Database for InMemoryDb {
         }
     }
 
-    async fn user_id_has_article_access(&self, id: usize, article: String) -> bool {
-        use log::debug;
-        debug!("{:?}", article);
+    async fn user_id_has_access_by_link(&self, id: usize, link: &str) -> bool {
         if let Some(user) = self.get_user_by_id(id).await {
-            return user.accessible_articles.contains(&article);
+            return user.accessible_articles.into_iter().any(|x| x.link_matches(link));
         } else {
             return false;
         }
     }
 
-    async fn delete_user_by_id(&self, id: usize) -> Result<(),()> {
+    async fn delete_user_by_id(&self, id: usize) -> Result<(), ()> {
         let mut local_db = self.db.lock().await;
         let mut local_id_index = self.id_index.lock().await;
 
         let email_option = local_id_index.get(&id);
-        
+
         match email_option {
             Some(email) => {
                 local_db.remove(email);
                 local_id_index.remove(&id);
                 return Ok(());
-            },
-            None => {return Err(());}
+            }
+            None => {
+                return Err(());
+            }
+        }
+    }
+
+    async fn get_paywall_articles_for_user_id(&self, id: usize) -> Option<Vec<PaywallArticle>> {
+        if let Some(user) = self.get_user_by_id(id).await {
+            return Some(user.accessible_articles.into_iter().collect());
+        } else {
+            return None;
         }
     }
 }

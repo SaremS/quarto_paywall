@@ -16,7 +16,7 @@ use stripe::{EventObject, EventType, Webhook, WebhookError};
 use crate::database::Database;
 use crate::envvars::EnvVarLoader;
 use crate::inmemory_html_server::InMemoryHtml;
-use crate::models::{ClientReference, PurchaseIntent};
+use crate::models::{PurchaseReference, PurchaseIntent};
 use crate::security::session_status_from_session;
 
 //https://github.com/arlyon/async-stripe/blob/master/examples/webhook-actix.rs
@@ -42,12 +42,12 @@ pub async fn stripe_webhook_add_article(
             EventType::CheckoutSessionCompleted => {
                 if let EventObject::CheckoutSession(session) = event.data.object {
                     let reference_json = session.client_reference_id.unwrap();
-                    let client_reference: ClientReference =
+                    let purchase_reference: PurchaseReference =
                         serde_json::from_str(&reference_json).unwrap();
                     let _ = db
                         .add_accessible_article_to_id(
-                            client_reference.user_id.clone(),
-                            client_reference.target.clone(),
+                            purchase_reference.user_id.clone(),
+                            purchase_reference.article.clone(),
                         )
                         .await;
                 }
@@ -81,24 +81,18 @@ pub async fn stripe_checkout(
     env_var_loader: Data<EnvVarLoader>,
     html_paywall: Data<InMemoryHtml>,
 ) -> Result<impl Responder> {
-    use log::debug;
-    let target = (intent.into_inner()).purchase_target;
+    let target_path = (intent.into_inner()).purchase_target;
 
-    debug!("QWERTWER");
-    debug!("{:?}", target);
-
-    if let Some((pw_price, pw_title)) = html_paywall.get_paywall_data(&target).await {
+    if let Some(article) = html_paywall.get_paywall_data(&target_path).await {
         let session_status =
             session_status_from_session(&session, &env_var_loader.get_jwt_secret_key()).await;
         let user_id = session_status.user_id.unwrap();
 
-        let target_domainpath = env_var_loader.get_domain_url() + &target;
+        let target_domainpath = env_var_loader.get_domain_url() + &target_path;
 
-        let reference = ClientReference { user_id, target };
+        let reference = PurchaseReference { user_id, article };
         let stripe_checkout_url = get_stripe_checkout_url(
             reference,
-            pw_title,
-            pw_price,
             env_var_loader.get_stripe_secret_key(),
             target_domainpath,
         )
@@ -113,16 +107,14 @@ pub async fn stripe_checkout(
 }
 
 async fn get_stripe_checkout_url(
-    client_reference: ClientReference,
-    name: String,
-    price: i64,
+    purchase_reference: PurchaseReference,
     stripe_secret_key: String,
     domainpath: String,
 ) -> String {
     let client = Client::new(stripe_secret_key);
 
     let product = {
-        let mut create_product = CreateProduct::new(&name);
+        let mut create_product = CreateProduct::new(&purchase_reference.article.title);
         create_product.metadata = Some(std::collections::HashMap::from([(
             String::from("async-stripe"),
             String::from("true"),
@@ -138,7 +130,7 @@ async fn get_stripe_checkout_url(
             String::from("async-stripe"),
             String::from("true"),
         )]));
-        create_price.unit_amount = Some(price);
+        create_price.unit_amount = Some(purchase_reference.article.get_price_in_minor_unit());
         create_price.expand = &["product"];
         Price::create(&client, create_price).await.unwrap()
     };
@@ -150,7 +142,7 @@ async fn get_stripe_checkout_url(
         price.currency.unwrap()
     );
 
-    let reference = serde_json::to_string(&client_reference).unwrap();
+    let reference = serde_json::to_string(&purchase_reference).unwrap();
 
     let success_path = domainpath.clone() + "?success=1";
     let cancel_path = domainpath + "?success=0";

@@ -5,6 +5,8 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 
+use crate::models::PaywallArticle;
+
 lazy_static! {
     static ref VALID_ROLE: Regex = Regex::new(r"^(admin|user)$").unwrap();
 }
@@ -39,5 +41,5 @@ pub struct User {
     pub is_verified: bool,
     #[validate(regex = "VALID_ROLE")]
     pub role: String,
-    pub accessible_articles: HashSet<String>,
+    pub accessible_articles: HashSet<PaywallArticle>,
 }
