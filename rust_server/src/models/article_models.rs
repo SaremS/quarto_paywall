@@ -1,9 +1,9 @@
-use serde::{Serialize, Deserialize};
+use serde_tuple::{Serialize_tuple, Deserialize_tuple};
 use html_editor::{operation::*, parse};
 
 use crate::price::Price;
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Serialize_tuple, Deserialize_tuple, Clone, Debug, PartialEq, Eq, Hash)]
 pub struct PaywallArticle {
     identifier: String,
     pub link: String,

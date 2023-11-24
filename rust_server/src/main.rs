@@ -58,15 +58,15 @@ async fn main() -> std::io::Result<()> {
             .route("/{filename:(?:posts|images)\\/[0-9a-zA-Z_\\.-]+\\.html$}", get().to(html_files)) //files in sub-folders
             .route("/{filename:site_libs\\/[0-9a-zA-Z_\\.-]+\\/[0-9a-zA-Z_\\.-]+\\.(?:js|css|jpg|jpeg)$}", get().to(static_files)) //styles and packages from quarto
             .route("/{filename:site_libs\\/bootstrap/bootstrap-icons.[0-9a-z\\?]+$}", get().to(static_files))
-            .route("/auth/user-dashboard", get().to(get_user_dashboard))
-            .route("/auth/user-dashboard-template", get().to(get_user_dashboard_template))
             .route("/auth/register", get().to(get_register))
             .route("/auth/login", get().to(get_login))
             .route("/auth/register-user", post().to(put_register_user))
             .route("/auth/login-user", post().to(put_login_user))
             .route("/auth/logout-user", get().to(get_logout_user))
+            .route("/auth/user-dashboard", get().to(get_user_dashboard))
             .route("/purchase/checkout", post().to(stripe_checkout))
             .route("/purchase/stripe-webhook", post().to(stripe_webhook_add_article))
+            .route("/auth/user-dashboard-template", get().to(get_user_dashboard_template))
             .route("/confirm-user", get().to(confirm_user))
             .route("/delete-user", get().to(delete_user))
             .route("/auth/delete-user", get().to(get_delete_user))

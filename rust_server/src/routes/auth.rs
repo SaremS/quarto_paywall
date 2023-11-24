@@ -1,13 +1,12 @@
 use actix_session::Session;
 use actix_web::{
     web::{Data, Json},
-    HttpResponse, Responder, Result,
+    HttpResponse, Responder, Result, HttpRequest
 };
 use askama::Template;
 
 use crate::database::Database;
 use crate::envvars::EnvVarLoader;
-use crate::inmemory_html_server::InMemoryHtml;
 use crate::mail::{send_confirmation_mail, send_deletion_mail};
 use crate::models::{AuthLevel, LoginUser, MailEnvVars, RegisterUser};
 use crate::security::session_status_from_session;
@@ -18,7 +17,7 @@ use crate::templates::{
 };
 
 pub async fn get_user_dashboard(
-    db: Data<impl Database>,
+    db: Data<dyn Database>,
     session: Session,
     env_var_loader: Data<EnvVarLoader>,
 ) -> Result<impl Responder> {
@@ -56,8 +55,7 @@ pub async fn get_user_dashboard(
 pub async fn get_user_dashboard_template(
     session: Session,
     env_var_loader: Data<EnvVarLoader>,
-    db: Data<impl Database>,
-    html_paywall: Data<InMemoryHtml>,
+    db: Data<dyn Database>,
 ) -> Result<impl Responder> {
     let session_status =
         session_status_from_session(&session, &env_var_loader.get_jwt_secret_key()).await;

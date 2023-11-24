@@ -1,8 +1,9 @@
-use serde::{Deserialize, Serialize};
+use serde_tuple::{Deserialize_tuple, Serialize_tuple};
+use serde::{Serialize, Deserialize};
 
 use crate::errors::DataImportError;
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Serialize_tuple, Deserialize_tuple, Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Price {
     price_in_minor: i64,
     currency: Currency,
@@ -37,8 +38,8 @@ impl Price {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, Hash)]
-struct Currency {
+#[derive(Serialize_tuple, Deserialize_tuple, Clone, Debug, PartialEq, Eq, Hash)]
+pub struct Currency {
     currency_code: CurrencyCode,
     major_to_minor_ratio: i64,
 }

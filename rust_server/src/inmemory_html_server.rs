@@ -49,7 +49,7 @@ impl InMemoryHtml {
                         );
 
                         if let Some(article) =
-                            PaywallArticle::from_html_string(&with_paywall_logic, &file_path)
+                            PaywallArticle::from_html_string(&with_paywall_logic, &file_path.replace(base_dir, ""))
                         {
                             paywall_articles.insert(file_path.clone(), article.clone());
 
@@ -191,31 +191,6 @@ impl InMemoryHtml {
             .html();
 
         return String::from(result);
-    }
-
-    fn extract_paywall_data(html: &str) -> Option<(i64, String)> {
-        let html_doc = parse(&html).unwrap();
-
-        if let Some(el) = html_doc.query(&Selector::from(".PAYWALLED")) {
-            let attrs = &el.attrs;
-            println!("{:?}",attrs);
-            let price_option: Option<i64> = attrs
-                .into_iter()
-                .find(|x| x.0 == "data-paywall-price")
-                .map(|x| &x.1)
-                .map(|x| x.parse().unwrap());
-
-            let title_option: Option<String> = attrs
-                .into_iter()
-                .find(|x| x.0 == "data-paywall-title")
-                .map(|x| (&x.1).to_string());
-
-            let output = (price_option, title_option).extract();
-
-            return output;
-        } else {
-            return None;
-        }
     }
 
     fn remove_paywalled_content(html: &str, wall_filepath: &str) -> String {

@@ -1,4 +1,5 @@
 use serde::{Serialize, Deserialize};
+use serde_tuple::{Serialize_tuple, Deserialize_tuple};
 
 use crate::models::PaywallArticle;
 
@@ -7,7 +8,7 @@ pub struct PurchaseIntent {
     pub purchase_target: String
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize_tuple, Deserialize_tuple, Debug)]
 pub struct PurchaseReference {
     pub user_id: usize,
     pub article: PaywallArticle,
