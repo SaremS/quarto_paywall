@@ -9,3 +9,4 @@ pub mod routes;
 pub mod security;
 pub mod templates;
 pub mod utils;
+pub mod func_utils;

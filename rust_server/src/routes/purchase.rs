@@ -1,3 +1,4 @@
+use log::info;
 use std::borrow::Borrow;
 
 use actix_session::Session;
@@ -14,6 +15,7 @@ use stripe::{EventObject, EventType, Webhook, WebhookError};
 
 use crate::database::Database;
 use crate::envvars::EnvVarLoader;
+use crate::inmemory_html_server::InMemoryHtml;
 use crate::models::{ClientReference, PurchaseIntent};
 use crate::security::session_status_from_session;
 
@@ -77,30 +79,37 @@ pub async fn stripe_checkout(
     session: Session,
     intent: Json<PurchaseIntent>,
     env_var_loader: Data<EnvVarLoader>,
+    html_paywall: Data<InMemoryHtml>,
 ) -> Result<impl Responder> {
+    use log::debug;
+    let target = (intent.into_inner()).purchase_target;
 
-    let session_status =
-        session_status_from_session(&session, &env_var_loader.get_jwt_secret_key()).await;
-    let user_id = session_status.user_id.unwrap();
+    debug!("QWERTWER");
+    debug!("{:?}", target);
 
-    let target_fullpath = (intent.into_inner()).purchase_target;
-    let target_domainpath = env_var_loader.get_domain_url() + &target_fullpath;
+    if let Some((pw_price, pw_title)) = html_paywall.get_paywall_data(&target).await {
+        let session_status =
+            session_status_from_session(&session, &env_var_loader.get_jwt_secret_key()).await;
+        let user_id = session_status.user_id.unwrap();
 
-    let target = target_fullpath.split('/').last().unwrap().to_string();
+        let target_domainpath = env_var_loader.get_domain_url() + &target;
 
-    let reference = ClientReference { user_id, target };
-    let stripe_checkout_url = get_stripe_checkout_url(
-        reference,
-        "Article: Paywalled".to_string(),
-        250,
-        env_var_loader.get_stripe_secret_key(),
-        target_domainpath
-    )
-    .await;
+        let reference = ClientReference { user_id, target };
+        let stripe_checkout_url = get_stripe_checkout_url(
+            reference,
+            pw_title,
+            pw_price,
+            env_var_loader.get_stripe_secret_key(),
+            target_domainpath,
+        )
+        .await;
 
-    let response = Json(stripe_checkout_url);
+        let response = Json(stripe_checkout_url);
 
-    return Ok(response);
+        return Ok(response);
+    } else {
+        return Err(actix_web::error::ErrorBadRequest("Target article not found"));
+    }
 }
 
 async fn get_stripe_checkout_url(
@@ -108,9 +117,8 @@ async fn get_stripe_checkout_url(
     name: String,
     price: i64,
     stripe_secret_key: String,
-    domainpath: String
+    domainpath: String,
 ) -> String {
-    use log::debug;
     let client = Client::new(stripe_secret_key);
 
     let product = {
@@ -135,7 +143,7 @@ async fn get_stripe_checkout_url(
         Price::create(&client, create_price).await.unwrap()
     };
 
-    println!(
+    info!(
         "created a product {:?} at price {} {}",
         product.name.unwrap(),
         price.unit_amount.unwrap() / 100,
