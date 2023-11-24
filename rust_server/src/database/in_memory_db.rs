@@ -192,6 +192,8 @@ impl Database for InMemoryDb {
     }
 
     async fn user_id_has_article_access(&self, id: usize, article: String) -> bool {
+        use log::debug;
+        debug!("{:?}", article);
         if let Some(user) = self.get_user_by_id(id).await {
             return user.accessible_articles.contains(&article);
         } else {

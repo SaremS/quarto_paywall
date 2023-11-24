@@ -96,12 +96,7 @@ async fn inplace_update_auth_to_paid(
     if session_status.auth_level == AuthLevel::UserUnconfirmed
         || session_status.auth_level == AuthLevel::UserConfirmed
     {
-        let target_article = http_request
-            .match_info()
-            .as_str()
-            .split("/")
-            .last()
-            .unwrap();
+        let target_article = http_request.match_info().as_str();
 
         if db
             .user_id_has_article_access(session_status.user_id.unwrap(), target_article.to_string())
