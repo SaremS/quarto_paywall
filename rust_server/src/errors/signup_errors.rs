@@ -8,6 +8,8 @@ pub enum SignupError {
     PasswordsDontMatchError,
     #[error("Email `{0}` already exists!")]
     EmailExistsError(String),
+    #[error("Username `{0}` already exists!")]
+    UsernameExistsError(String),
     #[error("The following errors were found while validating your inputs: `{0}`")]
     RegistrationFieldsError(String),
 }

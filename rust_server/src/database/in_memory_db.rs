@@ -2,17 +2,19 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use async_trait::async_trait;
+use chrono::Utc;
 use tokio::sync::Mutex;
 use validator::Validate;
 
 use crate::database::Database;
 use crate::errors::AuthenticationError;
 use crate::errors::SignupError;
-use crate::models::{LoginUser, RegisterUser, User, UserCreated, UserLoggedIn, PaywallArticle};
+use crate::models::{LoginUser, PaywallArticle, RegisterUser, User, UserCreated, UserLoggedIn};
 
 pub struct InMemoryDb {
-    db: Arc<Mutex<HashMap<String, User>>>,
-    id_index: Arc<Mutex<HashMap<usize, String>>>,
+    db: Arc<Mutex<HashMap<String, User>>>, //email -> User
+    id_index: Arc<Mutex<HashMap<usize, String>>>, //id -> email
+    username_index: Arc<Mutex<HashMap<String, String>>>, //username->email
     jwt_secret: String,
 }
 
@@ -21,6 +23,7 @@ impl InMemoryDb {
         return InMemoryDb {
             db: Arc::new(Mutex::new(HashMap::new())),
             id_index: Arc::new(Mutex::new(HashMap::new())),
+            username_index: Arc::new(Mutex::new(HashMap::new())),
             jwt_secret,
         };
     }
@@ -36,15 +39,21 @@ impl Database for InMemoryDb {
 
         let mut local_db = self.db.lock().await;
         let mut local_id_index = self.id_index.lock().await;
+        let mut local_username_index = self.username_index.lock().await;
 
         if local_db.contains_key(&user.email) {
             return Err(SignupError::EmailExistsError(user.email));
+        }
+
+        if local_username_index.contains_key(&user.username) {
+            return Err(SignupError::UsernameExistsError(user.email));
         }
 
         let new_id = local_db.len().clone();
 
         let created_user = User {
             id: new_id,
+            time_registered: Utc::now().timestamp() as usize,
             email: user.email,
             username: user.username,
             password: crate::security::get_hash(&user.password),
@@ -60,6 +69,7 @@ impl Database for InMemoryDb {
 
         local_db.insert(created_user.email.clone(), created_user.clone());
         local_id_index.insert(new_id, created_user.email.clone());
+        local_username_index.insert(created_user.username.clone(), created_user.email.clone());
 
         let token = crate::security::get_jwt_for_user(&created_user, &self.jwt_secret);
 
@@ -90,6 +100,7 @@ impl Database for InMemoryDb {
 
         let created_user = User {
             id: new_id,
+            time_registered: Utc::now().timestamp() as usize,
             email: user.email,
             username: user.username,
             password: crate::security::get_hash(&user.password),
@@ -153,7 +164,11 @@ impl Database for InMemoryDb {
         }
     }
 
-    async fn add_accessible_article_to_id(&self, id: usize, article: PaywallArticle) -> Result<(), ()> {
+    async fn add_accessible_article_to_id(
+        &self,
+        id: usize,
+        article: PaywallArticle,
+    ) -> Result<(), ()> {
         let mut local_db = self.db.lock().await;
         let local_id_index = self.id_index.lock().await;
 
@@ -193,7 +208,10 @@ impl Database for InMemoryDb {
 
     async fn user_id_has_access_by_link(&self, id: usize, link: &str) -> bool {
         if let Some(user) = self.get_user_by_id(id).await {
-            return user.accessible_articles.into_iter().any(|x| x.link_matches(link));
+            return user
+                .accessible_articles
+                .into_iter()
+                .any(|x| x.link_matches(link));
         } else {
             return false;
         }
@@ -202,12 +220,20 @@ impl Database for InMemoryDb {
     async fn delete_user_by_id(&self, id: usize) -> Result<(), ()> {
         let mut local_db = self.db.lock().await;
         let mut local_id_index = self.id_index.lock().await;
+        let mut local_username_index = self.username_index.lock().await;
 
         let email_option = local_id_index.get(&id);
 
         match email_option {
             Some(email) => {
+                //find and remove username index
+                let username = &local_db.get(email).unwrap().username;
+                local_username_index.remove(username);
+                
+                //find and remove user from db
                 local_db.remove(email);
+                
+                //find and remove id index
                 local_id_index.remove(&id);
                 return Ok(());
             }
