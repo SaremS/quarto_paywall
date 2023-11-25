@@ -1,0 +1,33 @@
+<div>
+  <h2 class="card-header">Are you sure?</h2>
+  <div class="card-body">
+    <p>
+      This will delete your account from the database - you will not be able to access purchased
+      content anymore.
+    </p>
+    <p>Continue anyway?</p>
+
+    <div class="grid">
+        <div class="g-col-12 g-col-md-4 g-start-md-2">
+          <button
+            class="btn btn-success"
+            hx-get="/auth/user-dashboard"
+            hx-target="#main-content"
+            hx-swap="innerHTML"
+          >
+            No - abort deletion
+          </button>
+        </div>
+        <div class="g-col-12 g-col-md-4 g-start-md-6">
+          <button
+            class="btn btn-danger"
+            hx-get="/auth/delete-user-confirmed"
+            hx-target="#main-content"
+            hx-swap="innerHTML"
+          >
+            Yes - confirm deletion
+          </button>
+        </div>
+      </div>
+  </div>
+</div>

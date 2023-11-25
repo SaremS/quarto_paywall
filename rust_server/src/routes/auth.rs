@@ -1,7 +1,7 @@
 use actix_session::Session;
 use actix_web::{
     web::{Data, Json},
-    HttpResponse, Responder, Result,
+    HttpResponse, Responder, Result, HttpRequest
 };
 use askama::Template;
 
@@ -17,6 +17,7 @@ use crate::templates::{
 };
 
 pub async fn get_user_dashboard(
+    db: Data<dyn Database>,
     session: Session,
     env_var_loader: Data<EnvVarLoader>,
 ) -> Result<impl Responder> {
@@ -26,8 +27,11 @@ pub async fn get_user_dashboard(
 
     let content;
     if auth_level > AuthLevel::NoAuth {
+        let paywall_articles = db.get_paywall_articles_for_user_id(session_status.user_id.unwrap()).await;
+
         content = UserDashboardTemplate {
             username: session_status.username.unwrap(),
+            articles: paywall_articles.unwrap(),
         }
         .render()
         .unwrap();
@@ -51,6 +55,7 @@ pub async fn get_user_dashboard(
 pub async fn get_user_dashboard_template(
     session: Session,
     env_var_loader: Data<EnvVarLoader>,
+    db: Data<dyn Database>,
 ) -> Result<impl Responder> {
     let session_status =
         session_status_from_session(&session, &env_var_loader.get_jwt_secret_key()).await;
@@ -58,8 +63,11 @@ pub async fn get_user_dashboard_template(
     let content;
 
     if session_status.auth_level > AuthLevel::NoAuth {
+        let paywall_articles = db.get_paywall_articles_for_user_id(session_status.user_id.unwrap()).await;
+
         content = UserDashboardTemplate {
             username: session_status.username.unwrap(),
+            articles: paywall_articles.unwrap(),
         }
         .render()
         .unwrap();
@@ -218,11 +226,10 @@ pub async fn get_delete_user() -> Result<impl Responder> {
 pub async fn get_delete_user_confirmed(
     session: Session,
     db: Data<dyn Database>,
-    env_var_loader: Data<EnvVarLoader>
+    env_var_loader: Data<EnvVarLoader>,
 ) -> Result<impl Responder> {
     let session_status =
         session_status_from_session(&session, &env_var_loader.get_jwt_secret_key()).await;
-    
 
     let mail_environment = MailEnvVars {
         mail_secret_key: &env_var_loader.get_mail_secret_key(),
@@ -239,12 +246,7 @@ pub async fn get_delete_user_confirmed(
     let user = db.get_user_by_id(user_id).await;
     let email = user.unwrap().email;
 
-    send_deletion_mail(
-        &user_id,
-        &email,
-        &mail_environment,
-    )
-    .await;
+    send_deletion_mail(&user_id, &email, &mail_environment).await;
 
     let delete_user_template_confirmed = DeleteUserConfirmedTemplate {}.render().unwrap();
 

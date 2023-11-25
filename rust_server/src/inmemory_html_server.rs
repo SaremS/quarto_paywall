@@ -5,9 +5,10 @@ use walkdir::WalkDir;
 
 use html_editor::operation::*;
 use html_editor::{parse, Element};
+use futures::future::join_all;
 
 use crate::func_utils::extractable_tuples::ExtractableOptionTuple2;
-use crate::models::{AuthLevel, SessionStatus};
+use crate::models::{AuthLevel, SessionStatus, PaywallArticle};
 use crate::utils::{AdvancedDeletable, AdvancedEditable};
 
 pub struct InMemoryHtml {
@@ -15,7 +16,7 @@ pub struct InMemoryHtml {
     storage_has_paid: HashMap<String, String>,
     storage_has_auth: HashMap<String, String>,
     storage_no_auth: HashMap<String, String>,
-    paywall_data: HashMap<String, (i64, String)>,
+    paywall_articles: HashMap<String, PaywallArticle>,
 }
 
 impl InMemoryHtml {
@@ -24,7 +25,7 @@ impl InMemoryHtml {
         let mut storage_has_paid: HashMap<String, String> = HashMap::new();
         let mut storage_has_auth: HashMap<String, String> = HashMap::new();
         let mut storage_no_auth: HashMap<String, String> = HashMap::new();
-        let mut paywall_data: HashMap<String, (i64, String)> = HashMap::new();
+        let mut paywall_articles: HashMap<String, PaywallArticle> = HashMap::new();
 
         /*
             1) Walk through quarto blog directory
@@ -47,10 +48,10 @@ impl InMemoryHtml {
                                 .replace("{{ nav-button-text }}", "User-Area"),
                         );
 
-                        if let Some((pw_price, pw_title)) =
-                            InMemoryHtml::extract_paywall_data(&with_paywall_logic)
+                        if let Some(article) =
+                            PaywallArticle::from_html_string(&with_paywall_logic, &file_path.replace(base_dir, ""))
                         {
-                            paywall_data.insert(file_path.clone(), (pw_price, pw_title));
+                            paywall_articles.insert(file_path.clone(), article.clone());
 
                             let with_paywall_content_removed =
                                 InMemoryHtml::remove_paywalled_content(
@@ -58,13 +59,11 @@ impl InMemoryHtml {
                                     "./paywall/paywall.html",
                                 );
                             
-                            let pw_price_dec = format!("{:.2}", pw_price as f64 / 100.0);
-
                             storage_has_auth.insert(
                                 file_path.clone(),
                                 with_paywall_content_removed
                                     .replace("{{ nav-button-text }}", "User-Area")
-                                    .replace("{{ paywall-price }}", &pw_price_dec)
+                                    .replace("{{ paywall-price }}", &article.get_price_in_major_unit_str())
                             );
 
                             let with_registerwall_content_removed =
@@ -94,7 +93,7 @@ impl InMemoryHtml {
             storage_has_paid,
             storage_has_auth,
             storage_no_auth,
-            paywall_data,
+            paywall_articles,
         };
     }
 
@@ -116,12 +115,19 @@ impl InMemoryHtml {
         return result;
     }
 
-    pub async fn get_paywall_data(&self, key: &str) -> Option<(i64, String)> {
+    pub async fn get_paywall_data(&self, key: &str) -> Option<PaywallArticle> {
         let full_key = format!("{}{}", self.base_dir, key);
 
         println!("Paywall data: {}", full_key);
 
-        return self.paywall_data.get(&full_key).map(|x| x.clone());
+        return self.paywall_articles.get(&full_key).map(|x| x.clone());
+    }
+
+    pub async fn get_paywall_data_multikey(&self, keys: Vec<&str>) -> Vec<Option<PaywallArticle>> {
+        let result_futures = keys.into_iter().map(|key| async {self.get_paywall_data(key).await}); 
+        let result = join_all(result_futures).await;
+
+        return result;
     }
 
     fn add_paywall_logic(html: &str) -> String {
@@ -185,31 +191,6 @@ impl InMemoryHtml {
             .html();
 
         return String::from(result);
-    }
-
-    fn extract_paywall_data(html: &str) -> Option<(i64, String)> {
-        let html_doc = parse(&html).unwrap();
-
-        if let Some(el) = html_doc.query(&Selector::from(".PAYWALLED")) {
-            let attrs = &el.attrs;
-            println!("{:?}",attrs);
-            let price_option: Option<i64> = attrs
-                .into_iter()
-                .find(|x| x.0 == "data-paywall-price")
-                .map(|x| &x.1)
-                .map(|x| x.parse().unwrap());
-
-            let title_option: Option<String> = attrs
-                .into_iter()
-                .find(|x| x.0 == "data-paywall-title")
-                .map(|x| (&x.1).to_string());
-
-            let output = (price_option, title_option).extract();
-
-            return output;
-        } else {
-            return None;
-        }
     }
 
     fn remove_paywalled_content(html: &str, wall_filepath: &str) -> String {

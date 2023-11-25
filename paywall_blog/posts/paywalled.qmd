@@ -13,5 +13,5 @@ This post contains a paywall
 Paywall is indicated by a `div` with `class="PAYWALLED"`.
 
 ## Paywall starts here
-<div class="PAYWALLED"></div>
+<div class="PAYWALLED" paywall-title="Paywalled Test" paywall-price=350 paywall-currency="USD" paywall-identifier="ASDF"></div>
 Congratulations - you have made it beyond the paywall!

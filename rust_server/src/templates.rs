@@ -1,5 +1,7 @@
 use askama::Template;
 
+use crate::models::PaywallArticle;
+
 #[derive(Template)]
 #[template(path = "uber.html")]
 pub struct UberTemplate {
@@ -38,6 +40,7 @@ pub struct LoginSuccessTemplate {
 #[template(path = "user_dashboard.html")]
 pub struct UserDashboardTemplate {
     pub username: String,
+    pub articles: Vec<PaywallArticle>
 }
 
 #[derive(Template)]

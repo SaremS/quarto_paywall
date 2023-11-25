@@ -99,7 +99,7 @@ async fn inplace_update_auth_to_paid(
         let target_article = http_request.match_info().as_str();
 
         if db
-            .user_id_has_article_access(session_status.user_id.unwrap(), target_article.to_string())
+            .user_id_has_access_by_link(session_status.user_id.unwrap(), &target_article.to_string())
             .await
         {
             session_status.auth_level = AuthLevel::PaidAuth;
