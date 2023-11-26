@@ -101,6 +101,7 @@ pub struct Currency {
 
 impl Currency {
     fn new(currency_code: CurrencyCode) -> Currency {
+        //extend this pattern match to add new currencies
         let major_to_minor_ratio: i64 = match currency_code {
             CurrencyCode::USD => 100,
             CurrencyCode::EUR => 100,
@@ -111,8 +112,7 @@ impl Currency {
         };
     }
 
-    ///Create currency frm 
-    ///
+    ///Create currency from a currency symbol string - currently `USD` and `EUR`
     fn from_string(currency: &str) -> Result<Currency, DataImportError> {
         let currency_code_result = CurrencyCode::from_string(currency);
         let currency = currency_code_result.map(|code| Currency::new(code));
@@ -120,6 +120,7 @@ impl Currency {
         return currency;
     }
 
+    ///Transform currency in minor units to major units
     fn transform_minor_to_major(&self, minor_units: i64) -> f32 {
         return minor_units as f32 / self.major_to_minor_ratio as f32;
     }
@@ -128,11 +129,15 @@ impl Currency {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, Hash)]
 #[serde(rename_all = "UPPERCASE")]
 enum CurrencyCode {
+    ///Fixed set of supported currencies - extend this if your application
+    ///requires a currency that is not supported yet.
     USD,
     EUR,
 }
 
 impl CurrencyCode {
+
+    ///Extend for additional currencies
     fn from_string(currency: &str) -> Result<CurrencyCode, DataImportError> {
         if currency == "USD" {
             return Ok(CurrencyCode::USD);
