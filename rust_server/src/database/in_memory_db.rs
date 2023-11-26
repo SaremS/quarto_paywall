@@ -217,6 +217,15 @@ impl Database for InMemoryDb {
         }
     }
 
+    async fn user_id_is_verified(&self, id: usize) -> bool {
+        use log::debug;
+        if let Some(user) = self.get_user_by_id(id).await {
+            return user.is_verified;
+        } else {
+            return false;
+        }
+    }
+
     async fn delete_user_by_id(&self, id: usize) -> Result<(), ()> {
         let mut local_db = self.db.lock().await;
         let mut local_id_index = self.id_index.lock().await;
