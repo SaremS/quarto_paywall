@@ -62,8 +62,27 @@ pub trait AdvancedEditable {
 }
 
 pub trait AdvancedDeletable {
+    ///Deletes all nodes after `after_selector` at the same level in the hierarchy
+    ///
+    /// ```
+    /// use html_editor::{parse, Node};
+    /// use html_editor::operation::*;
+    /// use rust_server::utils::AdvancedDeletable;
+    ///
+    /// let html = r#"<div><ul><li>1</li><li class="selectme">2</li><li>3</li></ul></div>"#;
+    ///
+    /// let selector = Selector::from("li.selectme");
+    /// let html = parse(html)
+    ///     .unwrap()
+    ///     .delete_all_children_after_selector(&selector)
+    ///     .html();
+    /// assert_eq!(html, r#"<div><ul><li>1</li><li class="selectme">2</li></ul></div>"#)
+    /// ```
     fn delete_all_children_after_selector(&mut self, after_selector: &Selector) -> &mut Self;
 
+    ///Recursive helper function for `delete_all_children_after_selector`.
+    ///Checks if any child contains the `after_selector` somewhere down its subtree 
+    ///and deletes all nodes, subsequent to that child.
     fn recurse_and_delete_all_after(&mut self, after_selector: &Selector) -> Vec<bool>;
 }
 
@@ -217,14 +236,4 @@ impl AdvancedDeletable for Vec<Node> {
 
         return result;
     }
-}
-
-pub fn last_five_chars(s: &str) -> String {
-    s.chars()
-        .rev()
-        .take(5)
-        .collect::<String>()
-        .chars()
-        .rev()
-        .collect()
 }
