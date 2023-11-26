@@ -71,7 +71,7 @@ pub async fn html_files(
     let mut session_status =
         session_status_from_session(&session, &env_var_loader.get_jwt_secret_key()).await;
 
-    inplace_update_auth_to_paid(&mut session_status, db, &req).await;
+    inplace_update_auth(&mut session_status, db, &req).await;
 
     let path: String = req.match_info().query("filename").parse().unwrap();
 
@@ -88,21 +88,23 @@ pub async fn html_files(
     }
 }
 
-async fn inplace_update_auth_to_paid(
+async fn inplace_update_auth(
     session_status: &mut SessionStatus,
     db: Data<dyn Database>,
     http_request: &HttpRequest,
 ) {
     if session_status.auth_level == AuthLevel::UserUnconfirmed
-        || session_status.auth_level == AuthLevel::UserConfirmed
     {
         let target_article = http_request.match_info().as_str();
+        let user_id = session_status.user_id.unwrap();
 
         if db
-            .user_id_has_access_by_link(session_status.user_id.unwrap(), &target_article.to_string())
+            .user_id_has_access_by_link(user_id, &target_article.to_string())
             .await
         {
             session_status.auth_level = AuthLevel::PaidAuth;
+        } else if db.user_id_is_verified(user_id).await {
+            session_status.auth_level = AuthLevel::UserConfirmed;
         }
     }
 }

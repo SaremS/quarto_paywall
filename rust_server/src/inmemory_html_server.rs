@@ -3,17 +3,18 @@ use std::collections::HashMap;
 use std::fs;
 use walkdir::WalkDir;
 
+use futures::future::join_all;
 use html_editor::operation::*;
 use html_editor::{parse, Element};
-use futures::future::join_all;
 
 use crate::func_utils::extractable_tuples::ExtractableOptionTuple2;
-use crate::models::{AuthLevel, SessionStatus, PaywallArticle};
+use crate::models::{AuthLevel, PaywallArticle, SessionStatus};
 use crate::utils::{AdvancedDeletable, AdvancedEditable};
 
 pub struct InMemoryHtml {
     base_dir: String,
     storage_has_paid: HashMap<String, String>,
+    storage_has_verified: HashMap<String, String>,
     storage_has_auth: HashMap<String, String>,
     storage_no_auth: HashMap<String, String>,
     paywall_articles: HashMap<String, PaywallArticle>,
@@ -23,6 +24,7 @@ impl InMemoryHtml {
     pub fn new(base_dir: &str) -> InMemoryHtml {
         //TODO: Declutter
         let mut storage_has_paid: HashMap<String, String> = HashMap::new();
+        let mut storage_has_verified: HashMap<String, String> = HashMap::new();
         let mut storage_has_auth: HashMap<String, String> = HashMap::new();
         let mut storage_no_auth: HashMap<String, String> = HashMap::new();
         let mut paywall_articles: HashMap<String, PaywallArticle> = HashMap::new();
@@ -48,38 +50,57 @@ impl InMemoryHtml {
                                 .replace("{{ nav-button-text }}", "User-Area"),
                         );
 
-                        if let Some(article) =
-                            PaywallArticle::from_html_string(&with_paywall_logic, &file_path.replace(base_dir, ""))
-                        {
+                        if let Some(article) = PaywallArticle::from_html_string(
+                            &with_paywall_logic,
+                            &file_path.replace(base_dir, ""),
+                        ) {
                             paywall_articles.insert(file_path.clone(), article.clone());
 
-                            let with_paywall_content_removed =
-                                InMemoryHtml::remove_paywalled_content(
-                                    &(with_paywall_logic.clone()),
-                                    "./paywall/paywall.html",
-                                );
-                            
+                            let has_verified_content = InMemoryHtml::remove_paywalled_content(
+                                &(with_paywall_logic.clone()),
+                                "./paywall/paywall.html",
+                            );
+
+                            storage_has_verified.insert(
+                                file_path.clone(),
+                                has_verified_content
+                                    .replace("{{ nav-button-text }}", "User-Area")
+                                    .replace(
+                                        "{{ paywall-price }}",
+                                        &article.get_price_in_major_unit_str(),
+                                    ),
+                            );
+
+                            let has_auth_content = InMemoryHtml::remove_paywalled_content(
+                                &(with_paywall_logic.clone()),
+                                "./paywall/verifywall.html",
+                            );
+
                             storage_has_auth.insert(
                                 file_path.clone(),
-                                with_paywall_content_removed
-                                    .replace("{{ nav-button-text }}", "User-Area")
-                                    .replace("{{ paywall-price }}", &article.get_price_in_major_unit_str())
+                                has_auth_content.replace("{{ nav-button-text }}", "User-Area"),
                             );
 
-                            let with_registerwall_content_removed =
-                                InMemoryHtml::remove_paywalled_content(
-                                    &with_paywall_logic,
-                                    "./paywall/registerwall.html",
-                                );
+                            let no_auth_content = InMemoryHtml::remove_paywalled_content(
+                                &with_paywall_logic,
+                                "./paywall/registerwall.html",
+                            );
                             storage_no_auth.insert(
                                 file_path,
-                                with_registerwall_content_removed
-                                    .replace("{{ nav-button-text }}", "Login"),
+                                no_auth_content.replace("{{ nav-button-text }}", "Login"),
                             );
                         } else {
-                            storage_has_auth.insert(file_path.clone(), with_paywall_logic.clone().replace("{{ nav-button-text }}", "User-Area"));
+                            storage_has_auth.insert(
+                                file_path.clone(),
+                                with_paywall_logic
+                                    .clone()
+                                    .replace("{{ nav-button-text }}", "User-Area"),
+                            );
 
-                            storage_no_auth.insert(file_path, with_paywall_logic.replace("{{ nav-button-text }}", "Login"));
+                            storage_no_auth.insert(
+                                file_path,
+                                with_paywall_logic.replace("{{ nav-button-text }}", "Login"),
+                            );
                         }
                     }
                     Err(e) => {
@@ -91,6 +112,7 @@ impl InMemoryHtml {
         return InMemoryHtml {
             base_dir: base_dir.to_string(),
             storage_has_paid,
+            storage_has_verified,
             storage_has_auth,
             storage_no_auth,
             paywall_articles,
@@ -106,8 +128,10 @@ impl InMemoryHtml {
 
         if session_status.auth_level == AuthLevel::NoAuth {
             result = self.storage_no_auth.get(&full_key).map(|x| x.clone());
-        } else if session_status.auth_level <= AuthLevel::UserConfirmed {
+        } else if session_status.auth_level < AuthLevel::UserConfirmed {
             result = self.storage_has_auth.get(&full_key).map(|x| x.clone());
+        } else if session_status.auth_level == AuthLevel::UserConfirmed {
+            result = self.storage_has_verified.get(&full_key).map(|x| x.clone());
         } else {
             result = self.storage_has_paid.get(&full_key).map(|x| x.clone());
         }
@@ -124,7 +148,9 @@ impl InMemoryHtml {
     }
 
     pub async fn get_paywall_data_multikey(&self, keys: Vec<&str>) -> Vec<Option<PaywallArticle>> {
-        let result_futures = keys.into_iter().map(|key| async {self.get_paywall_data(key).await}); 
+        let result_futures = keys
+            .into_iter()
+            .map(|key| async { self.get_paywall_data(key).await });
         let result = join_all(result_futures).await;
 
         return result;
