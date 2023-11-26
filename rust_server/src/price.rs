@@ -1,5 +1,5 @@
+use serde::{Deserialize, Serialize};
 use serde_tuple::{Deserialize_tuple, Serialize_tuple};
-use serde::{Serialize, Deserialize};
 
 use crate::errors::DataImportError;
 
@@ -17,6 +17,18 @@ impl Price {
         };
     }
 
+    /// Get price from price in minor unit a corresponding currency symbol string
+    /// (currently suppoers `USD` and `EUR`).
+    /// ```
+    ///use rust_server::price::Price;
+    ///
+    ///let price_in_minor = 100;
+    ///let currency_str = "USD";
+    ///
+    ///let price = Price::from_currency_string(price_in_minor, currency_str).unwrap();
+    ///assert_eq!(price.get_in_minor_unit(), 100);
+    ///assert_eq!(price.get_in_major_unit_str(), "1.00".to_string());
+    /// ```
     pub fn from_currency_string(
         price_in_minor: i64,
         currency_str: &str,
