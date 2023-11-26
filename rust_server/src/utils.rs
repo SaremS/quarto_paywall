@@ -1,20 +1,18 @@
-use html_editor::{
-    operation::{Selector},
-    Element, Node,
-};
+use html_editor::{operation::Selector, Element, Node};
 
 pub trait AdvancedEditable {
-    /// Insert `node` at `index` in the children all all elements that matche the `selector`.
+    /// Insert `node` at `index` in the children all elements that match the `selector`.
     /// If `index` lies outside the range of the children, `target` is inserted as the last
     /// element of children.
     ///
     /// ```
     /// use html_editor::{parse, Node};
     /// use html_editor::operation::*;
+    /// use rust_server::utils::AdvancedEditable;
     ///
     /// let html = r#"<div><ul><li>1</li><li>3</li></ul></div>"#;
     ///
-    /// let selector = Selector::from("div");
+    /// let selector = Selector::from("ul");
     /// let html = parse(html)
     ///     .unwrap()
     ///     .insert_at_index_or_push(&selector, Node::new_element(
@@ -32,6 +30,29 @@ pub trait AdvancedEditable {
         index: usize,
     ) -> &mut Self;
 
+    /// Insert `node` before (at the same hierarchical level) all (recursive) all child elements
+    /// of `selector` that match the `before_selector`.
+    /// If `before_selector` is not found, appends to all `selector` nodes.
+    ///
+    /// ```
+    /// use html_editor::{parse, Node};
+    /// use html_editor::operation::*;
+    /// use rust_server::utils::AdvancedEditable;
+    ///
+    /// let html = r#"<div><ul><li>1</li><li class="third">3</li></ul></div>"#;
+    ///
+    /// let selector = Selector::from("ul");
+    /// let before_selector = Selector::from("li.third");
+    /// let html = parse(html)
+    ///     .unwrap()
+    ///     .insert_before_selector_or_push(&selector, Node::new_element(
+    ///         "li",
+    ///         vec![],
+    ///         vec![Node::Text("2".to_string())]
+    ///     ), &before_selector)
+    ///     .html();
+    /// assert_eq!(html, r#"<div><ul><li>1</li><li>2</li><li class="third">3</li></ul></div>"#)
+    /// ```
     fn insert_before_selector_or_push(
         &mut self,
         selector: &Selector,
@@ -41,15 +62,9 @@ pub trait AdvancedEditable {
 }
 
 pub trait AdvancedDeletable {
-    fn delete_all_children_after_selector(
-        &mut self,
-        after_selector: &Selector,
-    ) -> &mut Self;
+    fn delete_all_children_after_selector(&mut self, after_selector: &Selector) -> &mut Self;
 
-    fn recurse_and_delete_all_after(
-        &mut self,
-        after_selector: &Selector,
-    ) -> Vec<bool>;
+    fn recurse_and_delete_all_after(&mut self, after_selector: &Selector) -> Vec<bool>;
 }
 
 impl AdvancedEditable for Element {
@@ -95,22 +110,14 @@ impl AdvancedEditable for Element {
 }
 
 impl AdvancedDeletable for Element {
-    fn delete_all_children_after_selector(
-        &mut self,
-        after_selector: &Selector,
-    ) -> &mut Self {
+    fn delete_all_children_after_selector(&mut self, after_selector: &Selector) -> &mut Self {
         let _ = AdvancedDeletable::recurse_and_delete_all_after(self, after_selector);
 
         return self;
     }
 
-    fn recurse_and_delete_all_after(
-        &mut self,
-        after_selector: &Selector,
-    ) -> Vec<bool> {
-        let children_contain_target = self
-            .children
-            .recurse_and_delete_all_after(after_selector);
+    fn recurse_and_delete_all_after(&mut self, after_selector: &Selector) -> Vec<bool> {
+        let children_contain_target = self.children.recurse_and_delete_all_after(after_selector);
 
         if let Some(pos) = children_contain_target.iter().position(|&flag| flag) {
             if pos < self.children.len() - 1 {
@@ -183,19 +190,13 @@ impl AdvancedEditable for Vec<Node> {
 }
 
 impl AdvancedDeletable for Vec<Node> {
-    fn delete_all_children_after_selector(
-        &mut self,
-        after_selector: &Selector,
-    ) -> &mut Self {
+    fn delete_all_children_after_selector(&mut self, after_selector: &Selector) -> &mut Self {
         let _ = AdvancedDeletable::recurse_and_delete_all_after(self, after_selector);
 
         return self;
     }
 
-    fn recurse_and_delete_all_after(
-        &mut self,
-        after_selector: &Selector,
-    ) -> Vec<bool> {
+    fn recurse_and_delete_all_after(&mut self, after_selector: &Selector) -> Vec<bool> {
         let mut result: Vec<bool> = Vec::new();
 
         for node in self.iter_mut() {
@@ -219,5 +220,11 @@ impl AdvancedDeletable for Vec<Node> {
 }
 
 pub fn last_five_chars(s: &str) -> String {
-    s.chars().rev().take(5).collect::<String>().chars().rev().collect()
+    s.chars()
+        .rev()
+        .take(5)
+        .collect::<String>()
+        .chars()
+        .rev()
+        .collect()
 }

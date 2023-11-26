@@ -218,7 +218,6 @@ impl Database for InMemoryDb {
     }
 
     async fn user_id_is_verified(&self, id: usize) -> bool {
-        use log::debug;
         if let Some(user) = self.get_user_by_id(id).await {
             return user.is_verified;
         } else {
