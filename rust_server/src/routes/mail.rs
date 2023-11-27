@@ -3,35 +3,27 @@ use actix_web::{
     HttpResponse, Responder, Result,
 };
 use actix_session::Session;
-use jsonwebtoken::{decode, DecodingKey, Validation};
 use serde::Deserialize;
 
 use crate::database::Database;
-use crate::envvars::EnvVarLoader;
-use crate::models::{DeletionConfirmation, EmailConfirmation};
+use crate::mail::VerifyAndDeleteUser;
 
 #[derive(Deserialize)]
-pub struct ConfirmUserQuery {
+pub struct VerifyUserQuery {
     token: String,
 }
 
 pub async fn confirm_user(
-    query: Query<ConfirmUserQuery>,
+    query: Query<VerifyUserQuery>,
     db: Data<dyn Database>,
-    env_var_loader: Data<EnvVarLoader>,
+    verifier: Data<dyn VerifyAndDeleteUser>,
 ) -> Result<impl Responder> {
-    let email_secret = env_var_loader.get_mail_secret_key();
+    let verification_result = verifier.handle_registration_verification(&query.token).await;
 
-    let decoded = decode::<EmailConfirmation>(
-        &query.token,
-        &DecodingKey::from_secret(email_secret.as_bytes()),
-        &Validation::default(),
-    );
-
-    match decoded {
-        Ok(user_confirm) => {
+    match verification_result {
+        Ok(user_id) => {
             let _ = db
-                .confirm_email_for_user_id(user_confirm.claims.user_id)
+                .confirm_email_for_user_id(user_id)
                 .await;
             let body = "Confirmation successful - you can now close this page";
 
@@ -41,8 +33,8 @@ pub async fn confirm_user(
 
             return Ok(response);
         }
-        Err(_) => {
-            let body = "Something went wrong, please request a new confirmation link - you can now close this page";
+        Err(error) => {
+            let body = error.to_string();
             let response = HttpResponse::Ok()
                 .content_type("text/html; charset=utf-8")
                 .body(body);
@@ -52,28 +44,17 @@ pub async fn confirm_user(
     }
 }
 
-#[derive(Deserialize)]
-pub struct DeleteUserQuery {
-    token: String,
-}
-
 pub async fn delete_user(
-    query: Query<DeleteUserQuery>,
+    query: Query<VerifyUserQuery>,
     db: Data<dyn Database>,
-    env_var_loader: Data<EnvVarLoader>,
+    verifier: Data<dyn VerifyAndDeleteUser>,
     session: Session
 ) -> Result<impl Responder> {
-    let deletion_secret = env_var_loader.get_deletion_secret_key();
+    let verification_result = verifier.handle_deletion_verification(&query.token).await;
 
-    let decoded = decode::<DeletionConfirmation>(
-        &query.token,
-        &DecodingKey::from_secret(deletion_secret.as_bytes()),
-        &Validation::default(),
-    );
-
-    match decoded {
-        Ok(user_confirm) => {
-            let _ = db.delete_user_by_id(user_confirm.claims.user_id).await;
+    match verification_result {
+        Ok(user_id) => {
+            let _ = db.delete_user_by_id(user_id).await;
             let body = "Deletion successful - you can now close this page";
             let _ = session.remove("session");
 
@@ -83,8 +64,8 @@ pub async fn delete_user(
 
             return Ok(response);
         }
-        Err(_) => {
-            let body = "Something went wrong, please request a new deletion link - you can now close this page";
+        Err(error) => {
+            let body = error.to_string();
             let response = HttpResponse::Ok()
                 .content_type("text/html; charset=utf-8")
                 .body(body);
