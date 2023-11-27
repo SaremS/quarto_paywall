@@ -10,7 +10,7 @@ use crate::models::{PurchaseIntent, PurchaseReference};
 use crate::utils::ResultOrInfo;
 
 #[async_trait]
-pub trait PurchaseHandler {
+pub trait PurchaseHandler: Sync + Send {
     async fn checkout(
         &self,
         user_id: &usize,

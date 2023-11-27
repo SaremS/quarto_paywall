@@ -12,6 +12,7 @@ use stripe::{
     IdOrCreate, Price, PriceId, Product, ProductId, Webhook,
 };
 
+use crate::envvars::EnvVarLoader;
 use crate::inmemory_html_server::InMemoryHtml;
 use crate::models::{PurchaseIntent, PurchaseReference};
 use crate::purchase::{PurchaseError, PurchaseHandler};
@@ -85,6 +86,14 @@ impl PurchaseHandler for StripePurchaseHandler {
 }
 
 impl StripePurchaseHandler {
+    pub fn new_from_envvars(env_var_loader: &EnvVarLoader) -> StripePurchaseHandler {
+        return StripePurchaseHandler {
+            stripe_webhook_key: env_var_loader.get_stripe_webhook_key(),
+            stripe_secret_key: env_var_loader.get_stripe_secret_key(),
+            domain_url: env_var_loader.get_domain_url(),
+        };
+    }
+
     fn get_header_value<'b>(&self, req: &'b HttpRequest, key: &'b str) -> Option<&'b str> {
         return req.headers().get(key)?.to_str().ok();
     }
