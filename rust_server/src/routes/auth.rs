@@ -7,7 +7,7 @@ use askama::Template;
 
 use crate::database::Database;
 use crate::envvars::EnvVarLoader;
-use crate::mail::VerifyAndDeleteUser;
+use crate::user_communication::VerifyAndDeleteUser;
 use crate::models::{AuthLevel, LoginUser, RegisterUser};
 use crate::security::session_status_from_session;
 use crate::templates::{

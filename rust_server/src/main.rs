@@ -15,7 +15,8 @@ use rust_server::routes::{
 use rust_server::security::make_session_middleware;
 use rust_server::models::RegisterUser;
 use rust_server::envvars::EnvVarLoader;
-use rust_server::mail::{EmailDevice, VerifyAndDeleteUser};
+use rust_server::user_communication::{EmailDevice, VerifyAndDeleteUser};
+use rust_server::purchase::{PurchaseHandler, StripePurchaseHandler};
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -23,7 +24,6 @@ async fn main() -> std::io::Result<()> {
 
     let db_base = InMemoryDb::new(env_var_loader.get_jwt_secret_key());
 
-    //TODO: Just for testing - remove later on!!!
     let admin_user = RegisterUser {
         email: env_var_loader.get_admin_email(),
         username: "admin".to_string(),
@@ -38,13 +38,17 @@ async fn main() -> std::io::Result<()> {
     let in_memory_html = Data::new(InMemoryHtml::new(&env_var_loader.get_path_static_files()));
     let in_memory_static = Data::new(InMemoryStaticFiles::new(&env_var_loader.get_path_static_files()));
 
-    
-
     let mail_verifier = EmailDevice::new_from_envvars(&env_var_loader);
     let mail_verifier_arc: Arc<dyn VerifyAndDeleteUser> = Arc::new(mail_verifier);
     let mail_verifier_data = Data::from(mail_verifier_arc);
 
+    let purchase_handler = StripePurchaseHandler::new_from_envvars(&env_var_loader);
+    let purchase_handler_arc: Arc<dyn PurchaseHandler> = Arc::new(purchase_handler);
+    let purchase_handler_data = Data::from(purchase_handler_arc);
+
     let env_var_data = Data::from(Arc::new(env_var_loader));
+
+    
 
     env_logger::init_from_env(env_logger::Env::new().default_filter_or("debug"));
 
@@ -55,6 +59,7 @@ async fn main() -> std::io::Result<()> {
             .app_data(mail_verifier_data.clone())
             .app_data(in_memory_html.clone())
             .app_data(in_memory_static.clone())
+            .app_data(purchase_handler_data.clone())
             .wrap(Logger::default())
             .wrap(make_session_middleware())
             .route("/", get().to(index))

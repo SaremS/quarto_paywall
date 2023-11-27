@@ -6,7 +6,7 @@ use actix_session::Session;
 use serde::Deserialize;
 
 use crate::database::Database;
-use crate::mail::VerifyAndDeleteUser;
+use crate::user_communication::VerifyAndDeleteUser;
 
 #[derive(Deserialize)]
 pub struct VerifyUserQuery {

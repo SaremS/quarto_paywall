@@ -6,27 +6,9 @@ use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, Validation}
 use lettre::message::header::ContentType;
 use lettre::{transport::smtp::authentication::Credentials, Message, SmtpTransport, Transport};
 use serde::{Deserialize, Serialize};
-use thiserror::Error;
 
 use crate::envvars::EnvVarLoader;
-
-#[async_trait]
-pub trait VerifyAndDeleteUser: Send + Sync {
-    async fn send_registration_verification(&self, user_id: &usize, recipient: &str);
-    async fn handle_registration_verification(
-        &self,
-        token: &str,
-    ) -> Result<usize, VerificationError>;
-
-    async fn send_deletion_verification(&self, user_id: &usize, recipient: &str);
-    async fn handle_deletion_verification(&self, token: &str) -> Result<usize, VerificationError>;
-}
-
-#[derive(Error, Debug)]
-pub enum VerificationError {
-    #[error("There's a problem with your confirmation link - it might have expired. Please request another one.")]
-    TokenError,
-}
+use crate::user_communication::{VerifyAndDeleteUser, VerificationError};
 
 pub struct EmailDevice {
     mail_secret_key: String,
@@ -42,7 +24,9 @@ pub struct EmailDevice {
 #[async_trait]
 impl VerifyAndDeleteUser for EmailDevice {
     async fn send_registration_verification(&self, user_id: &usize, recipient: &str) {
-        let token = self.make_verification_token(user_id, self.mail_secret_key.clone(), Duration::days(1)).await;
+        let token = self
+            .make_verification_token(user_id, self.mail_secret_key.clone(), Duration::days(1))
+            .await;
         let confirm_url = "".to_owned() + &self.domain_url + "/confirm-user?token=" + &token;
 
         let subject = "Please confirm your email address";
@@ -68,8 +52,13 @@ impl VerifyAndDeleteUser for EmailDevice {
     }
 
     async fn send_deletion_verification(&self, user_id: &usize, recipient: &str) {
-        let token =
-            self.make_verification_token(user_id, self.deletion_secret_key.clone(), Duration::minutes(15)).await;
+        let token = self
+            .make_verification_token(
+                user_id,
+                self.deletion_secret_key.clone(),
+                Duration::minutes(15),
+            )
+            .await;
 
         let confirm_url = "".to_owned() + &self.domain_url + "/delete-user?token=" + &token;
 
@@ -84,10 +73,7 @@ impl VerifyAndDeleteUser for EmailDevice {
         self.send_email(deletion_mail).await;
     }
 
-    async fn handle_deletion_verification(
-        &self,
-        token: &str,
-    ) -> Result<usize, VerificationError> {
+    async fn handle_deletion_verification(&self, token: &str) -> Result<usize, VerificationError> {
         let key = self.deletion_secret_key.clone();
 
         let verification_result = self.decode_verification_token(token, &key).await;
@@ -106,7 +92,7 @@ impl EmailDevice {
             smtp_host: loader.get_smtp_host(),
             smtp_sender_name: loader.get_smtp_sender_name(),
             smtp_username: loader.get_smtp_username(),
-            smtp_password: loader.get_smtp_password()
+            smtp_password: loader.get_smtp_password(),
         };
     }
 
@@ -144,7 +130,7 @@ impl EmailDevice {
     async fn decode_verification_token(
         &self,
         token: &str,
-        key: &str
+        key: &str,
     ) -> Result<EmailVerification, VerificationError> {
         let decoded = decode::<EmailVerification>(
             token,
@@ -153,8 +139,12 @@ impl EmailDevice {
         );
 
         match decoded {
-            Ok(verified) => {return Ok(verified.claims);},
-            Err(_) => {return Err(VerificationError::TokenError);}
+            Ok(verified) => {
+                return Ok(verified.claims);
+            }
+            Err(_) => {
+                return Err(VerificationError::TokenError);
+            }
         }
     }
 
