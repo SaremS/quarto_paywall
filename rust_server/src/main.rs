@@ -15,7 +15,7 @@ use rust_server::routes::{
 use rust_server::security::make_session_middleware;
 use rust_server::models::RegisterUser;
 use rust_server::envvars::EnvVarLoader;
-use rust_server::mail::{EmailDevice, VerifyAndDeleteUser};
+use rust_server::user_communication::{EmailDevice, VerifyAndDeleteUser};
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -23,7 +23,6 @@ async fn main() -> std::io::Result<()> {
 
     let db_base = InMemoryDb::new(env_var_loader.get_jwt_secret_key());
 
-    //TODO: Just for testing - remove later on!!!
     let admin_user = RegisterUser {
         email: env_var_loader.get_admin_email(),
         username: "admin".to_string(),
@@ -37,8 +36,6 @@ async fn main() -> std::io::Result<()> {
  
     let in_memory_html = Data::new(InMemoryHtml::new(&env_var_loader.get_path_static_files()));
     let in_memory_static = Data::new(InMemoryStaticFiles::new(&env_var_loader.get_path_static_files()));
-
-    
 
     let mail_verifier = EmailDevice::new_from_envvars(&env_var_loader);
     let mail_verifier_arc: Arc<dyn VerifyAndDeleteUser> = Arc::new(mail_verifier);

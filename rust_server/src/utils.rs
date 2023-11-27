@@ -237,3 +237,9 @@ impl AdvancedDeletable for Vec<Node> {
         return result;
     }
 }
+
+pub enum ResultOrInfo<T,E,I> {
+    Ok(T),
+    Err(E),
+    Info(I),
+}
