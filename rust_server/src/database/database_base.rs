@@ -166,8 +166,124 @@ pub trait Database: Send + Sync {
     ///assert!(has_access);
     ///```
     async fn user_id_has_access_by_link(&self, id: usize, link: &str) -> bool;
+
+    ///Check if user has been verified (currently via mail; in the future
+    ///probably also via Google/Github Login)
+    ///
+    ///```
+    ///use tokio::runtime::Runtime;
+    ///
+    ///use rust_server::models::RegisterUser;
+    ///use rust_server::database::{Database, InMemoryDb};
+    ///use rust_server::security::NonHashing;
+    ///
+    ///let db: InMemoryDb<NonHashing> = InMemoryDb::new("123".to_string());
+    ///let new_user = RegisterUser {
+    ///     email: "test@test.com".to_string(),
+    ///     username: "test".to_string(),
+    ///     password: "insecure password".to_string(),
+    ///     password_repeat: "insecure password".to_string()
+    ///};
+    ///
+    ///let rt = Runtime::new().unwrap();
+    ///let _ = rt.block_on(db.create_user(new_user));
+    ///
+    ///let is_verified = rt.block_on(db.user_id_is_verified(0));
+    ///assert!(!is_verified);
+    ///```
     async fn user_id_is_verified(&self, id: usize) -> bool;
+
+    ///Verifies the user
+    ///
+    ///```
+    ///use tokio::runtime::Runtime;
+    ///
+    ///use rust_server::models::RegisterUser;
+    ///use rust_server::database::{Database, InMemoryDb};
+    ///use rust_server::security::NonHashing;
+    ///
+    ///let db: InMemoryDb<NonHashing> = InMemoryDb::new("123".to_string());
+    ///let new_user = RegisterUser {
+    ///     email: "test@test.com".to_string(),
+    ///     username: "test".to_string(),
+    ///     password: "insecure password".to_string(),
+    ///     password_repeat: "insecure password".to_string()
+    ///};
+    ///
+    ///let rt = Runtime::new().unwrap();
+    ///let _ = rt.block_on(db.create_user(new_user));
+    ///
+    ///let _ = rt.block_on(db.confirm_email_for_user_id(0));
+    ///
+    ///let is_verified = rt.block_on(db.user_id_is_verified(0));
+    ///assert!(is_verified);
+    ///```
     async fn confirm_email_for_user_id(&self, id: usize) -> Result<(), ()>;
+
+    ///Delete a user by providing their `user_id`.
+    ///
+    ///```
+    ///use tokio::runtime::Runtime;
+    ///
+    ///use rust_server::models::RegisterUser;
+    ///use rust_server::database::{Database, InMemoryDb};
+    ///use rust_server::security::NonHashing;
+    ///
+    ///let db: InMemoryDb<NonHashing> = InMemoryDb::new("123".to_string());
+    ///let new_user = RegisterUser {
+    ///     email: "test@test.com".to_string(),
+    ///     username: "test".to_string(),
+    ///     password: "insecure password".to_string(),
+    ///     password_repeat: "insecure password".to_string()
+    ///};
+    ///
+    ///let rt = Runtime::new().unwrap();
+    ///let _ = rt.block_on(db.create_user(new_user));
+    ///
+    ///let user_option = rt.block_on(db.get_user_by_id(0));
+    ///assert!(user_option.is_some());
+    ///
+    ///let _ = rt.block_on(db.delete_user_by_id(0));
+    ///let user_option = rt.block_on(db.get_user_by_id(0));
+    ///assert!(user_option.is_none());
+    ///```
     async fn delete_user_by_id(&self, id: usize) -> Result<(), ()>;
+
+    ///If `user_id` exists, returns all `PaywallArticle`s that the corresponding
+    ///user has access to. If user doesn't exist, returns `None`
+    ///
+    ///```
+    ///use tokio::runtime::Runtime;
+    ///
+    ///use rust_server::models::{RegisterUser, LoginUser, PaywallArticle};
+    ///use rust_server::price::Price;
+    ///use rust_server::database::{Database, InMemoryDb};
+    ///use rust_server::security::NonHashing;
+    ///
+    ///let db: InMemoryDb<NonHashing> = InMemoryDb::new("123".to_string());
+    ///let new_user = RegisterUser {
+    ///     email: "test@test.com".to_string(),
+    ///     username: "test".to_string(),
+    ///     password: "insecure password".to_string(),
+    ///     password_repeat: "insecure password".to_string()
+    ///};
+    ///
+    ///let rt = Runtime::new().unwrap();
+    ///let _ = rt.block_on(db.create_user(new_user));
+    ///
+    ///let articles = rt.block_on(db.get_paywall_articles_for_user_id(0)).unwrap();
+    ///assert_eq!(articles.len(), 0);
+    ///
+    ///let article = PaywallArticle::new(
+    ///     "test identifier".to_string(),
+    ///     "/test/test-article".to_string(),
+    ///     "test title".to_string(),
+    ///     Price::from_currency_string(10, "USD").unwrap()
+    ///);
+    ///
+    ///let _ = rt.block_on(db.add_accessible_article_to_id(0, article));
+    ///let articles = rt.block_on(db.get_paywall_articles_for_user_id(0)).unwrap();
+    ///assert_eq!(articles.len(), 1);
+    ///```
     async fn get_paywall_articles_for_user_id(&self, id: usize) -> Option<Vec<PaywallArticle>>;
 }
