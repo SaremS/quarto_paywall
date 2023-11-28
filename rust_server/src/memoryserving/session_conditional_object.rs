@@ -28,7 +28,7 @@ impl<T: Copy + Send + Sync> SessionConditionalObject<T> for AuthLevelConditional
     ///```
     ///use tokio::runtime::Runtime;
     ///
-    ///use rust_server::fileserving::{AuthLevelConditionalObject, SessionConditionalObject};
+    ///use rust_server::memoryserving::{AuthLevelConditionalObject, SessionConditionalObject};
     ///use rust_server::models::{SessionStatus, AuthLevel};
     ///
     ///let target_items = vec![(AuthLevel::NoAuth, "no auth"), (AuthLevel::UserConfirmed, "confirmed")];

@@ -11,5 +11,5 @@ pub mod routes;
 pub mod security;
 pub mod templates;
 pub mod user_communication;
-pub mod fileserving;
+pub mod memoryserving;
 pub mod utils;
