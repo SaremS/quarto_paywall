@@ -37,27 +37,8 @@ impl<T: HashingAlgorithm> InMemoryDb<T> {
 
 #[async_trait]
 impl<T: HashingAlgorithm> Database for InMemoryDb<T> {
-    ///Create new user and directly provide login JWT after successful signup
-    ///```
-    ///use tokio::runtime::Runtime;
-    ///use rust_server::database::{Database, InMemoryDb};
-    ///use rust_server::models::RegisterUser;
-    ///use rust_server::security::NonHashing;
-    ///
-    ///let db: InMemoryDb<NonHashing> = InMemoryDb::new("123".to_string());
-    ///let new_user = RegisterUser {
-    ///     email: "test@test.com".to_string(),
-    ///     username: "test".to_string(),
-    ///     password: "insecure password".to_string(),
-    ///     password_repeat: "insecure password".to_string()
-    ///     };
-    ///
-    ///let rt = Runtime::new().unwrap();
-    ///let registered = rt.block_on(db.create_user(new_user)).unwrap();
-    ///assert_eq!(registered.user_id, 0);
-    ///assert_eq!(registered.email, "test@test.com");
-    ///assert_eq!(registered.username, "test");
-    ///```
+
+    ///See [`crate::database::Database::create_user`]
     async fn create_user(&self, user: RegisterUser) -> Result<UserCreated, SignupError> {
         match user.validate() {
             Ok(_) => (),
@@ -110,7 +91,7 @@ impl<T: HashingAlgorithm> Database for InMemoryDb<T> {
         return Ok(user_created);
     }
 
-    ///Create user with admin credentials
+    ///See [`crate::database::Database::create_admin`]
     async fn create_admin(&self, user: RegisterUser) -> Result<UserCreated, SignupError> {
         match user.validate() {
             Ok(_) => (),
@@ -157,33 +138,7 @@ impl<T: HashingAlgorithm> Database for InMemoryDb<T> {
         return Ok(user_created);
     }
 
-    ///Match provided credentials against stored credentials and
-    ///grant access token if they are matching.
-    ///```
-    ///use tokio::runtime::Runtime;
-    ///
-    ///use rust_server::models::{RegisterUser, LoginUser};
-    ///use rust_server::database::{Database, InMemoryDb};
-    ///use rust_server::security::NonHashing;
-    ///
-    ///let db: InMemoryDb<NonHashing> = InMemoryDb::new("123".to_string());
-    ///let new_user = RegisterUser {
-    ///     email: "test@test.com".to_string(),
-    ///     username: "test".to_string(),
-    ///     password: "insecure password".to_string(),
-    ///     password_repeat: "insecure password".to_string()
-    ///};
-    ///
-    ///let rt = Runtime::new().unwrap();
-    ///let _ = rt.block_on(db.create_user(new_user));
-    ///
-    ///let login_user = LoginUser {
-    ///     email: "test@test.com".to_string(),
-    ///     password: "insecure password".to_string()
-    ///};
-    ///let logged_in = rt.block_on(db.login(login_user)).unwrap();
-    ///assert_eq!(logged_in.username, "test");
-    ///```
+    ///See [`crate::database::Database::login`]
     async fn login(&self, login_user: LoginUser) -> Result<UserLoggedIn, AuthenticationError> {
         let cur_user_db = self.db.lock().await;
 
@@ -208,6 +163,7 @@ impl<T: HashingAlgorithm> Database for InMemoryDb<T> {
         return Ok(user_logged_in);
     }
 
+    ///See [`crate::database::Database::get_user_by_id`]
     async fn get_user_by_id(&self, id: usize) -> Option<User> {
         let local_db = self.db.lock().await;
         let local_id_index = self.id_index.lock().await;
@@ -220,6 +176,7 @@ impl<T: HashingAlgorithm> Database for InMemoryDb<T> {
         }
     }
 
+    ///See [`crate::database::Database::add_accessible_article_to_id`]
     async fn add_accessible_article_to_id(
         &self,
         id: usize,
@@ -243,6 +200,7 @@ impl<T: HashingAlgorithm> Database for InMemoryDb<T> {
         }
     }
 
+    ///See [`crate::database::Database::confirm_email_for_user_id`]
     async fn confirm_email_for_user_id(&self, id: usize) -> Result<(), ()> {
         let mut local_db = self.db.lock().await;
         let local_id_index = self.id_index.lock().await;
@@ -262,6 +220,7 @@ impl<T: HashingAlgorithm> Database for InMemoryDb<T> {
         }
     }
 
+    ///See [`crate::database::Database::user_id_has_access_by_link`]
     async fn user_id_has_access_by_link(&self, id: usize, link: &str) -> bool {
         if let Some(user) = self.get_user_by_id(id).await {
             return user
@@ -273,6 +232,7 @@ impl<T: HashingAlgorithm> Database for InMemoryDb<T> {
         }
     }
 
+    ///See [`crate::database::Database::user_id_is_verified`]
     async fn user_id_is_verified(&self, id: usize) -> bool {
         if let Some(user) = self.get_user_by_id(id).await {
             return user.is_verified;
@@ -281,6 +241,7 @@ impl<T: HashingAlgorithm> Database for InMemoryDb<T> {
         }
     }
 
+    ///See [`crate::database::Database::delete_user_by_id`]
     async fn delete_user_by_id(&self, id: usize) -> Result<(), ()> {
         let mut local_db = self.db.lock().await;
         let mut local_id_index = self.id_index.lock().await;
@@ -307,6 +268,7 @@ impl<T: HashingAlgorithm> Database for InMemoryDb<T> {
         }
     }
 
+    ///See [`crate::database::Database::get_paywall_articles_for_user_id]
     async fn get_paywall_articles_for_user_id(&self, id: usize) -> Option<Vec<PaywallArticle>> {
         if let Some(user) = self.get_user_by_id(id).await {
             return Some(user.accessible_articles.into_iter().collect());

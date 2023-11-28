@@ -7,7 +7,6 @@ use futures::future::join_all;
 use html_editor::operation::*;
 use html_editor::{parse, Element};
 
-use crate::func_utils::extractable_tuples::ExtractableOptionTuple2;
 use crate::models::{AuthLevel, PaywallArticle, SessionStatus};
 use crate::utils::{AdvancedDeletable, AdvancedEditable};
 
