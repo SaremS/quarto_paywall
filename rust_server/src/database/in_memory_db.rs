@@ -10,27 +10,54 @@ use crate::database::Database;
 use crate::errors::AuthenticationError;
 use crate::errors::SignupError;
 use crate::models::{LoginUser, PaywallArticle, RegisterUser, User, UserCreated, UserLoggedIn};
+use crate::security::HashingAlgorithm;
 
-pub struct InMemoryDb {
+pub struct InMemoryDb<T> where T: HashingAlgorithm {
+    ///Simple pseudo-DB for testing
+    ///
+    ///=> Do not use in production
     db: Arc<Mutex<HashMap<String, User>>>, //email -> User
     id_index: Arc<Mutex<HashMap<usize, String>>>, //id -> email
     username_index: Arc<Mutex<HashMap<String, String>>>, //username->email
     jwt_secret: String,
+    hashing_algorithm: T,
 }
 
-impl InMemoryDb {
-    pub fn new(jwt_secret: String) -> InMemoryDb {
+impl<T: HashingAlgorithm> InMemoryDb<T> {
+    pub fn new(jwt_secret: String, hashing_algorithm: T) -> InMemoryDb<T> {
         return InMemoryDb {
             db: Arc::new(Mutex::new(HashMap::new())),
             id_index: Arc::new(Mutex::new(HashMap::new())),
             username_index: Arc::new(Mutex::new(HashMap::new())),
             jwt_secret,
+            hashing_algorithm,
         };
     }
 }
 
 #[async_trait]
-impl Database for InMemoryDb {
+impl<T: HashingAlgorithm> Database for InMemoryDb<T> {
+    ///Create new user and directly provide login JWT after successful signup
+    ///```
+    ///use tokio::runtime::Runtime;
+    ///use rust_server::database::{Database, InMemoryDb};
+    ///use rust_server::models::RegisterUser;
+    ///use rust_server::security::NonHashing;
+    ///
+    ///let db = InMemoryDb::new("123".to_string(), NonHashing{});
+    ///let new_user = RegisterUser {
+    ///     email: "test@test.com".to_string(),
+    ///     username: "test".to_string(),
+    ///     password: "insecure password".to_string(),
+    ///     password_repeat: "insecure password".to_string()
+    ///     };
+    ///
+    ///let rt = Runtime::new().unwrap();
+    ///let registered = rt.block_on(db.create_user(new_user)).unwrap();
+    ///assert_eq!(registered.user_id, 0);
+    ///assert_eq!(registered.email, "test@test.com");
+    ///assert_eq!(registered.username, "test");
+    ///```
     async fn create_user(&self, user: RegisterUser) -> Result<UserCreated, SignupError> {
         match user.validate() {
             Ok(_) => (),
@@ -46,7 +73,7 @@ impl Database for InMemoryDb {
         }
 
         if local_username_index.contains_key(&user.username) {
-            return Err(SignupError::UsernameExistsError(user.email));
+            return Err(SignupError::UsernameExistsError(user.username));
         }
 
         let new_id = local_db.len().clone();
@@ -56,7 +83,7 @@ impl Database for InMemoryDb {
             time_registered: Utc::now().timestamp() as usize,
             email: user.email,
             username: user.username,
-            password: crate::security::get_hash(&user.password),
+            password: T::get_hash(&user.password),
             is_verified: false,
             role: "user".to_string(),
             accessible_articles: HashSet::new(),
@@ -83,6 +110,7 @@ impl Database for InMemoryDb {
         return Ok(user_created);
     }
 
+    ///Create user with admin credentials
     async fn create_admin(&self, user: RegisterUser) -> Result<UserCreated, SignupError> {
         match user.validate() {
             Ok(_) => (),
@@ -103,7 +131,7 @@ impl Database for InMemoryDb {
             time_registered: Utc::now().timestamp() as usize,
             email: user.email,
             username: user.username,
-            password: crate::security::get_hash(&user.password),
+            password: T::get_hash(&user.password),
             is_verified: false,
             role: "admin".to_string(),
             accessible_articles: HashSet::new(),
@@ -129,6 +157,33 @@ impl Database for InMemoryDb {
         return Ok(user_created);
     }
 
+    ///Match provided credentials against stored credentials and
+    ///grant access token if they are matching.
+    ///```
+    ///use tokio::runtime::Runtime;
+    ///
+    ///use rust_server::models::{RegisterUser, LoginUser};
+    ///use rust_server::database::{Database, InMemoryDb};
+    ///use rust_server::security::NonHashing;
+    ///
+    ///let db = InMemoryDb::new("123".to_string(), NonHashing{});
+    ///let new_user = RegisterUser {
+    ///     email: "test@test.com".to_string(),
+    ///     username: "test".to_string(),
+    ///     password: "insecure password".to_string(),
+    ///     password_repeat: "insecure password".to_string()
+    ///};
+    ///
+    ///let rt = Runtime::new().unwrap();
+    ///let _ = rt.block_on(db.create_user(new_user));
+    ///
+    ///let login_user = LoginUser {
+    ///     email: "test@test.com".to_string(),
+    ///     password: "insecure password".to_string()
+    ///};
+    ///let logged_in = rt.block_on(db.login(login_user)).unwrap();
+    ///assert_eq!(logged_in.username, "test");
+    ///```
     async fn login(&self, login_user: LoginUser) -> Result<UserLoggedIn, AuthenticationError> {
         let cur_user_db = self.db.lock().await;
 
@@ -139,7 +194,8 @@ impl Database for InMemoryDb {
             }
         };
 
-        if !crate::security::verify_hash(&login_user.password, &user.password) {
+        if !T::verify_hash(&login_user.password, &user.password)
+        {
             return Err(AuthenticationError::InvalidCredentialsError);
         }
 
@@ -237,10 +293,10 @@ impl Database for InMemoryDb {
                 //find and remove username index
                 let username = &local_db.get(email).unwrap().username;
                 local_username_index.remove(username);
-                
+
                 //find and remove user from db
                 local_db.remove(email);
-                
+
                 //find and remove id index
                 local_id_index.remove(&id);
                 return Ok(());

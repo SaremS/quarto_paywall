@@ -12,7 +12,7 @@ use rust_server::routes::{
     static_files::{html_files, index, static_files, in_memory_static_files},
     mail::{confirm_user, delete_user}
 };
-use rust_server::security::make_session_middleware;
+use rust_server::security::{make_session_middleware, HashingAlgorithm, ScryptHashing};
 use rust_server::models::RegisterUser;
 use rust_server::envvars::EnvVarLoader;
 use rust_server::user_communication::{EmailDevice, VerifyAndDeleteUser};
@@ -21,8 +21,9 @@ use rust_server::purchase::{PurchaseHandler, StripePurchaseHandler};
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     let env_var_loader = EnvVarLoader::new();
+    let scrypt_hashing = ScryptHashing{};
 
-    let db_base = InMemoryDb::new(env_var_loader.get_jwt_secret_key());
+    let db_base = InMemoryDb::new(env_var_loader.get_jwt_secret_key(), scrypt_hashing);
 
     let admin_user = RegisterUser {
         email: env_var_loader.get_admin_email(),
