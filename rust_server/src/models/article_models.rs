@@ -1,5 +1,5 @@
-use serde_tuple::{Serialize_tuple, Deserialize_tuple};
 use html_editor::{operation::*, parse};
+use serde_tuple::{Deserialize_tuple, Serialize_tuple};
 
 use crate::price::Price;
 
@@ -8,10 +8,19 @@ pub struct PaywallArticle {
     identifier: String,
     pub link: String,
     pub title: String,
-    price: Price
+    price: Price,
 }
 
 impl PaywallArticle {
+    pub fn new(identifier: String, link: String, title: String, price: Price) -> PaywallArticle {
+        return PaywallArticle {
+            identifier,
+            link,
+            title,
+            price,
+        };
+    }
+
     pub fn from_html_string(html: &str, link: &str) -> Option<PaywallArticle> {
         let html_doc = parse(&html).unwrap();
 
@@ -24,7 +33,7 @@ impl PaywallArticle {
                 .map(|x| &x.1)
                 .map(|x| x.parse().unwrap())
                 .unwrap();
-            
+
             let title = attrs
                 .into_iter()
                 .find(|x| x.0 == "data-paywall-title")
@@ -46,7 +55,12 @@ impl PaywallArticle {
 
             let price = Price::from_currency_string(price_in_minor, currency_str).unwrap();
 
-            return Some(PaywallArticle{ identifier, link: link.to_string(), title, price});
+            return Some(PaywallArticle {
+                identifier,
+                link: link.to_string(),
+                title,
+                price,
+            });
         } else {
             return None;
         }
