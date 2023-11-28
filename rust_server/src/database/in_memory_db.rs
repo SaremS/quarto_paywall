@@ -12,25 +12,25 @@ use crate::errors::SignupError;
 use crate::models::{LoginUser, PaywallArticle, RegisterUser, User, UserCreated, UserLoggedIn};
 use crate::security::HashingAlgorithm;
 
+ ///Simple pseudo-DB for testing
+///
+///=> Do not use in production
 pub struct InMemoryDb<T> where T: HashingAlgorithm {
-    ///Simple pseudo-DB for testing
-    ///
-    ///=> Do not use in production
     db: Arc<Mutex<HashMap<String, User>>>, //email -> User
     id_index: Arc<Mutex<HashMap<usize, String>>>, //id -> email
     username_index: Arc<Mutex<HashMap<String, String>>>, //username->email
     jwt_secret: String,
-    hashing_algorithm: T,
+    _marker: std::marker::PhantomData<T>
 }
 
 impl<T: HashingAlgorithm> InMemoryDb<T> {
-    pub fn new(jwt_secret: String, hashing_algorithm: T) -> InMemoryDb<T> {
+    pub fn new(jwt_secret: String) -> InMemoryDb<T> {
         return InMemoryDb {
             db: Arc::new(Mutex::new(HashMap::new())),
             id_index: Arc::new(Mutex::new(HashMap::new())),
             username_index: Arc::new(Mutex::new(HashMap::new())),
             jwt_secret,
-            hashing_algorithm,
+            _marker: std::marker::PhantomData
         };
     }
 }
@@ -44,7 +44,7 @@ impl<T: HashingAlgorithm> Database for InMemoryDb<T> {
     ///use rust_server::models::RegisterUser;
     ///use rust_server::security::NonHashing;
     ///
-    ///let db = InMemoryDb::new("123".to_string(), NonHashing{});
+    ///let db: InMemoryDb<NonHashing> = InMemoryDb::new("123".to_string());
     ///let new_user = RegisterUser {
     ///     email: "test@test.com".to_string(),
     ///     username: "test".to_string(),
@@ -166,7 +166,7 @@ impl<T: HashingAlgorithm> Database for InMemoryDb<T> {
     ///use rust_server::database::{Database, InMemoryDb};
     ///use rust_server::security::NonHashing;
     ///
-    ///let db = InMemoryDb::new("123".to_string(), NonHashing{});
+    ///let db: InMemoryDb<NonHashing> = InMemoryDb::new("123".to_string());
     ///let new_user = RegisterUser {
     ///     email: "test@test.com".to_string(),
     ///     username: "test".to_string(),
