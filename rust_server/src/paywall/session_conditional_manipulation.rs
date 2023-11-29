@@ -11,6 +11,7 @@ pub trait SessionConditionalManipulation<S: Clone, T: Clone + Send + Sync, U: Se
 }
 
 pub struct AuthLevelManipulatorByFn<S: Clone, T: Send + Sync> {
+    hash_fun: fn(T) -> String,
     auth_and_funs: Vec<(AuthLevel, fn(S) -> T)>,
 }
 
@@ -31,6 +32,7 @@ impl<S: Clone, T: Clone + Send + Sync> SessionConditionalManipulation<S, T, Auth
     ///     SessionConditionalManipulation
     /// };
     ///use rust_server::models::{AuthLevel, SessionStatus};
+    ///use rust_server::security::xor_hash;
     ///
     ///let input = "test";
     ///
@@ -38,7 +40,7 @@ impl<S: Clone, T: Clone + Send + Sync> SessionConditionalManipulation<S, T, Auth
     ///     (AuthLevel::NoAuth, |x| x.to_string() + "1"), 
     ///     (AuthLevel::UserConfirmed, |x| x.to_string() + "2")];
     ///
-    ///let manipulator = AuthLevelManipulatorByFn::new(manipulation);
+    ///let manipulator = AuthLevelManipulatorByFn::new(manipulation, |x| xor_hash(&x));
     ///
     ///let output = manipulator.manipulate_object(input);
     ///
@@ -69,22 +71,22 @@ impl<S: Clone, T: Clone + Send + Sync> SessionConditionalManipulation<S, T, Auth
             items.push((auth_level, content));
         }
 
-        return AuthLevelConditionalObject::new(items);
+        return AuthLevelConditionalObject::new(items, self.hash_fun);
     }
 }
 
 impl<S: Clone, T: Clone + Send + Sync> AuthLevelManipulatorByFn<S, T> {
     ///Merely checks for increasing levels of AuthLevels and then
     ///creates the object
-    pub fn new(auth_and_funs: Vec<(AuthLevel, fn(S) -> T)>) -> AuthLevelManipulatorByFn<S, T> {
+    pub fn new(auth_and_funs: Vec<(AuthLevel, fn(S) -> T)>, hash_fun: fn(T) -> String) -> AuthLevelManipulatorByFn<S, T> {
         assert!(auth_and_funs.windows(2).all(|item| item[0].0 < item[1].0));
-        return AuthLevelManipulatorByFn { auth_and_funs };
+        return AuthLevelManipulatorByFn { auth_and_funs, hash_fun };
     }
 
     ///Presume that there is only a single transformation at the lowest
     ///AuthLevel (= AuthLevel::NoAuth)
-    pub fn new_with_single_level(target_fun: fn(S) -> T) -> AuthLevelManipulatorByFn<S, T> {
+    pub fn new_with_single_level(target_fun: fn(S) -> T, hash_fun: fn(T) -> String) -> AuthLevelManipulatorByFn<S, T> {
         let auth_and_funs = vec![(AuthLevel::NoAuth, target_fun)];
-        return AuthLevelManipulatorByFn { auth_and_funs };
+        return AuthLevelManipulatorByFn { auth_and_funs, hash_fun };
     }
 }

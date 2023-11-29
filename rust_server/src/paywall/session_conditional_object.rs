@@ -13,13 +13,17 @@ use crate::models::{AuthLevel, SessionStatus};
 #[async_trait]
 pub trait SessionConditionalObject<T: Clone + Send + Sync>: Send + Sync {
     async fn get(&self, session_status: &SessionStatus) -> T;
+
+    ///For upstream performance improvements - e.g. 304 Not Modified responses
+    async fn get_hash(&self, session_status: &SessionStatus) -> String;
 }
 
 ///Serve content based on user auth level
 pub struct AuthLevelConditionalObject<T: Clone + Send + Sync> {
-    //store as two distinct object to ease access
+    //store as three distinct vecs to ease access
     auth_levels: Vec<AuthLevel>,
     contents: Vec<T>,
+    hashes: Vec<String>
 }
 
 #[async_trait]
@@ -30,9 +34,10 @@ impl<T: Clone + Send + Sync> SessionConditionalObject<T> for AuthLevelConditiona
     ///
     ///use rust_server::paywall::{AuthLevelConditionalObject, SessionConditionalObject};
     ///use rust_server::models::{SessionStatus, AuthLevel};
+    ///use rust_server::security::xor_hash;
     ///
     ///let target_items = vec![(AuthLevel::NoAuth, "no auth"), (AuthLevel::UserConfirmed, "confirmed")];
-    ///let conditional = AuthLevelConditionalObject::new(target_items);
+    ///let conditional = AuthLevelConditionalObject::new(target_items, xor_hash);
     ///
     ///let session_status_noauth = SessionStatus{ user_id: None, auth_level: AuthLevel::NoAuth,
     ///username: None};
@@ -55,43 +60,58 @@ impl<T: Clone + Send + Sync> SessionConditionalObject<T> for AuthLevelConditiona
         let auth_level = session_status.auth_level;
         return self.get_with_auth_level(&auth_level);
     }
+
+    async fn get_hash(&self, session_status: &SessionStatus) -> String {
+        let auth_level = session_status.auth_level;
+        return self.get_hash_with_auth_level(&auth_level);
+    }
 }
 
 impl<T: Clone + Send + Sync> AuthLevelConditionalObject<T> {
     ///Serve files based on auth level. `assert!`s that the `AuthLevel`s in
     ///`items` are in **strictly** increasing order - panics if not.
-    pub fn new(items: Vec<(AuthLevel, T)>) -> AuthLevelConditionalObject<T> {
-        //require items as tuples but store as two separate vectors to avoid messing
+    pub fn new(items: Vec<(AuthLevel, T)>, hash_fun: fn(T) -> String) -> AuthLevelConditionalObject<T> {
+        //require items as tuples but store as three separate vectors to avoid messing
         //up which auth level belongs to which content
         assert!(items.windows(2).all(|item| item[0].0 < item[1].0));
 
         let mut auth_levels = Vec::new();
         let mut contents = Vec::new();
+        let mut hashes = Vec::new();
 
         for (auth_level, content) in items {
             auth_levels.push(auth_level);
-            contents.push(content);
+            contents.push(content.clone());
+            hashes.push(hash_fun(content));
         }
 
         return AuthLevelConditionalObject {
             auth_levels,
             contents,
+            hashes
         };
     }
 
-    pub fn new_with_single_level(content: T) -> AuthLevelConditionalObject<T> {
+    pub fn new_with_single_level(content: T, hash_fun: fn(T) -> String) -> AuthLevelConditionalObject<T> {
         let auth_levels = vec![AuthLevel::NoAuth];
-        let contents = vec![content];
+        let contents = vec![content.clone()];
+        let hashes = vec![hash_fun(content)];
 
         return AuthLevelConditionalObject {
             auth_levels,
             contents,
+            hashes
         };
     }
 
     fn get_with_auth_level(&self, auth_level: &AuthLevel) -> T {
         let idx = self.get_auth_level_index(auth_level);
         return self.contents[idx].clone();
+    }
+
+    fn get_hash_with_auth_level(&self, auth_level: &AuthLevel) -> String {
+        let idx = self.get_auth_level_index(auth_level);
+        return self.hashes[idx].clone();
     }
 
     fn get_auth_level_index(&self, auth_level: &AuthLevel) -> usize {
