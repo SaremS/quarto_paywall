@@ -4,8 +4,8 @@ use log::error;
 use walkdir::WalkDir;
 
 pub struct PathAndFile<T> {
-    file_path: String,
-    file_content: T,
+    pub file_path: String,
+    pub file_content: T,
 }
 
 pub trait RecursiveFileReader<T> {
