@@ -2,6 +2,11 @@ use async_trait::async_trait;
 
 use crate::models::{AuthLevel, SessionStatus};
 
+pub struct ContentAndHash<T: Clone + Sync +Send> {
+    pub content: T,
+    pub hash: String
+}
+
 ///Get stored object based on some session status property
 ///
 ///Primarily to serve distinct objects based on auth-level,
@@ -16,6 +21,8 @@ pub trait SessionConditionalObject<T: Clone + Send + Sync>: Send + Sync {
 
     ///For upstream performance improvements - e.g. 304 Not Modified responses
     async fn get_hash(&self, session_status: &SessionStatus) -> String;
+
+    async fn get_with_hash(&self, session_status: &SessionStatus) -> ContentAndHash<T>;
 }
 
 ///Serve content based on user auth level
@@ -64,6 +71,13 @@ impl<T: Clone + Send + Sync> SessionConditionalObject<T> for AuthLevelConditiona
     async fn get_hash(&self, session_status: &SessionStatus) -> String {
         let auth_level = session_status.auth_level;
         return self.get_hash_with_auth_level(&auth_level);
+    }
+
+    async fn get_with_hash(&self, session_status: &SessionStatus) -> ContentAndHash<T> {
+        let content = self.get(session_status).await;
+        let hash = self.get_hash(session_status).await;
+
+        return ContentAndHash {content, hash};
     }
 }
 
