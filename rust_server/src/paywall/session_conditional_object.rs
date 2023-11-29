@@ -11,19 +11,19 @@ use crate::models::{AuthLevel, SessionStatus};
 ///
 ///Should be straightforward to extend e.g. to locale
 #[async_trait]
-pub trait SessionConditionalObject<T: Copy + Send + Sync>: Send + Sync {
+pub trait SessionConditionalObject<T: Clone + Send + Sync>: Send + Sync {
     async fn get(&self, session_status: &SessionStatus) -> T;
 }
 
 ///Serve content based on user auth level
-pub struct AuthLevelConditionalObject<T: Copy> {
+pub struct AuthLevelConditionalObject<T: Clone + Send + Sync> {
     //store as two distinct object to ease access
     auth_levels: Vec<AuthLevel>,
     contents: Vec<T>,
 }
 
 #[async_trait]
-impl<T: Copy + Send + Sync> SessionConditionalObject<T> for AuthLevelConditionalObject<T> {
+impl<T: Clone + Send + Sync> SessionConditionalObject<T> for AuthLevelConditionalObject<T> {
     ///Serve content based on user auth level
     ///```
     ///use tokio::runtime::Runtime;
@@ -57,7 +57,7 @@ impl<T: Copy + Send + Sync> SessionConditionalObject<T> for AuthLevelConditional
     }
 }
 
-impl<T: Copy> AuthLevelConditionalObject<T> {
+impl<T: Clone + Send + Sync> AuthLevelConditionalObject<T> {
     ///Serve files based on auth level. `assert!`s that the `AuthLevel`s in
     ///`items` are in **strictly** increasing order - panics if not.
     pub fn new(items: Vec<(AuthLevel, T)>) -> AuthLevelConditionalObject<T> {
@@ -91,7 +91,7 @@ impl<T: Copy> AuthLevelConditionalObject<T> {
 
     fn get_with_auth_level(&self, auth_level: &AuthLevel) -> T {
         let idx = self.get_auth_level_index(auth_level);
-        return self.contents[idx];
+        return self.contents[idx].clone();
     }
 
     fn get_auth_level_index(&self, auth_level: &AuthLevel) -> usize {
