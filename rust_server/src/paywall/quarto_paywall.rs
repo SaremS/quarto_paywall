@@ -3,6 +3,7 @@ use std::fs;
 use html_editor::{operation::*, parse, Element};
 
 use crate::models::{AuthLevel, PaywallArticle};
+use crate::price::Price;
 use crate::paywall::{
     paywall_server_factory, AuthLevelConditionalObject, AuthLevelManipulatorByFn, PaywallServer,
     RecursiveFileReaderString,
@@ -37,17 +38,43 @@ pub fn make_quarto_paywall<V: PaywallServer<String, AuthLevelConditionalObject<S
 
 //TODO: Filetypes can likely be optimized - either use &str or html_editor::parse output
 //
-trait PaywallCheck {
+trait PaywallExtraction {
     fn is_paywalled(&self) -> bool;
+    fn get_paywall_price(&self) -> Price;
 }
 
-impl PaywallCheck for String {
-    fn is_paywalled(&self) -> bool {return self.contains("class=\"PAYWALLED\"");}
-}
+impl PaywallExtraction for String {
+    fn is_paywalled(&self) -> bool {
+        return self.contains("class=\"PAYWALLED\"");
+    }
 
+    fn get_paywall_price(&self) -> Price {
+        let html_doc = parse(self).unwrap();
+        let paywall_div = html_doc.query(&Selector::from(".PAYWALLED")).unwrap();
+        
+        let attr = &paywall_div.attrs;
+        let price_in_minor = attr
+            .into_iter()
+            .find(|x| x.0 == "data-paywall-price")
+            .map(|x| &x.1)
+            .map(|x| x.parse().unwrap())
+            .unwrap();    
+
+        let currency_str = attr.
+            into_iter()
+            .find(|x| x.0 == "data-paywall-currency")
+            .map(|x| &x.1)
+            .unwrap();
+
+        let price = Price::from_currency_string(price_in_minor, currency_str).unwrap();
+
+        return price;
+    }
+}
 
 fn noauth_manipulation(x: String) -> String {
-    let with_paidauth = paidauth_manipulation(x.clone());
+    let with_paidauth =
+        paidauth_manipulation_nonav(x.clone()).replace("{{ nav-button-text }}", "Login");
 
     if x.is_paywalled() {
         return remove_paywalled_content(&with_paidauth, "./paywall/registerwall.html");
@@ -57,7 +84,8 @@ fn noauth_manipulation(x: String) -> String {
 }
 
 fn userunconfirmed_manipulation(x: String) -> String {
-    let with_paidauth = paidauth_manipulation(x.clone());
+    let with_paidauth =
+        paidauth_manipulation_nonav(x.clone()).replace("{{ nav-button-text }}", "User-Area");
     if x.is_paywalled() {
         return remove_paywalled_content(&with_paidauth, "./paywall/verifywall.html");
     } else {
@@ -66,19 +94,33 @@ fn userunconfirmed_manipulation(x: String) -> String {
 }
 
 fn userconfirmed_manipulation(x: String) -> String {
-    let with_paidauth = paidauth_manipulation(x.clone());
+    let with_paidauth =
+        paidauth_manipulation_nonav(x.clone()).replace("{{ nav-button-text }}", "User-Area");
     if x.is_paywalled() {
-        return remove_paywalled_content(&with_paidauth, "./paywall/paywall.html");
+        let with_paywall = remove_paywalled_content(&with_paidauth, "./paywall/paywall.html");
+        let price = with_paywall.get_paywall_price();
+        let with_price = with_paywall.replace("{{ paywall-price }}", &price.get_in_major_unit_str()); 
+
+        return with_price;
     } else {
         return with_paidauth.to_string();
     }
 }
 
 fn paidauth_manipulation(x: String) -> String {
+    let with_paidauth =
+        paidauth_manipulation_nonav(x.clone()).replace("{{ nav-button-text }}", "User-Area");
+
+    return with_paidauth;
+}
+
+fn paidauth_manipulation_nonav(x: String) -> String {
     let with_scripts = add_script_links(x);
     let with_modal = add_login_modal(&with_scripts);
     return add_login_logic(&with_modal);
 }
+
+
 
 fn add_script_links(html: String) -> String {
     let htmx_tag =
