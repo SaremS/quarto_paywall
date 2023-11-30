@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{collections::HashMap,sync::Arc};
 
 use actix_web::{middleware::Logger, web::{Data, get, post}, App, HttpServer};
 
@@ -17,6 +17,10 @@ use rust_server::models::RegisterUser;
 use rust_server::envvars::EnvVarLoader;
 use rust_server::user_communication::{EmailDevice, VerifyAndDeleteUser};
 use rust_server::purchase::{PurchaseHandler, StripePurchaseHandler};
+use rust_server::paywall::{make_quarto_paywall, AuthLevelConditionalObject, PaywallItem};
+
+
+type HashMapServer = HashMap<String, PaywallItem<String, AuthLevelConditionalObject<String>>>;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -46,6 +50,9 @@ async fn main() -> std::io::Result<()> {
     let purchase_handler_arc: Arc<dyn PurchaseHandler> = Arc::new(purchase_handler);
     let purchase_handler_data = Data::from(purchase_handler_arc);
 
+    let quarto_paywall = make_quarto_paywall::<HashMapServer>(&env_var_loader.get_path_static_files());
+    let quarto_paywall_arc = Data::from(Arc::new(quarto_paywall));
+
     let env_var_data = Data::from(Arc::new(env_var_loader));
 
     
@@ -60,6 +67,7 @@ async fn main() -> std::io::Result<()> {
             .app_data(in_memory_html.clone())
             .app_data(in_memory_static.clone())
             .app_data(purchase_handler_data.clone())
+            .app_data(quarto_paywall_arc.clone())
             .wrap(Logger::default())
             .wrap(make_session_middleware())
             .route("/", get().to(index))

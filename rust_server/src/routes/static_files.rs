@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::{path::PathBuf, collections::HashMap};
 
 use actix_files as fs;
 use actix_session::Session;
@@ -14,6 +14,8 @@ use crate::inmemory_html_server::InMemoryHtml;
 use crate::inmemory_static_files::InMemoryStaticFiles;
 use crate::models::{AuthLevel, SessionStatus};
 use crate::security::session_status_from_session;
+use crate::paywall::{PaywallItem, AuthLevelConditionalObject, PaywallServer};
+
 
 pub async fn index(
     in_memory_html: Data<InMemoryHtml>,
@@ -44,6 +46,7 @@ pub async fn static_files(req: HttpRequest) -> Result<fs::NamedFile> {
     Ok(fs::NamedFile::open(path)?)
 }
 
+
 pub async fn in_memory_static_files(
     req: HttpRequest,
     in_memory_static: Data<InMemoryStaticFiles>,
@@ -61,7 +64,37 @@ pub async fn in_memory_static_files(
     }
 }
 
+type HashMapServer = HashMap<String, PaywallItem<String, AuthLevelConditionalObject<String>>>;
+
 pub async fn html_files(
+    req: HttpRequest,
+    hash_map_server: Data<HashMapServer>,
+    db: Data<dyn Database>,
+    session: Session,
+    env_var_loader: Data<EnvVarLoader>,
+) -> Result<impl Responder> {
+    let mut session_status =
+        session_status_from_session(&session, &env_var_loader.get_jwt_secret_key()).await;
+
+    inplace_update_auth(&mut session_status, db, &req).await;
+
+    let query_path: String = req.match_info().query("filename").parse().unwrap();
+    let path = format!("{}/{}", env_var_loader.get_path_static_files(), &query_path); 
+
+    let output = hash_map_server.get_content(&path, &session_status).await;
+
+    match output {
+        Some(html) => {
+            let body = once(async move { Ok::<_, actix_web::Error>(Bytes::from(html)) });
+            return Ok(HttpResponse::Ok()
+                .content_type("text/html; charset=utf-8")
+                .streaming(body));
+        }
+        None => return Ok(HttpResponse::NotFound().body("Not found")),
+    }
+}
+
+/*pub async fn html_files(
     req: HttpRequest,
     in_memory_html: Data<InMemoryHtml>,
     db: Data<dyn Database>,
@@ -86,7 +119,7 @@ pub async fn html_files(
         }
         None => return Ok(HttpResponse::NotFound().body("Not found")),
     }
-}
+}*/
 
 async fn inplace_update_auth(
     session_status: &mut SessionStatus,

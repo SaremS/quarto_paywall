@@ -35,30 +35,42 @@ pub fn make_quarto_paywall<V: PaywallServer<String, AuthLevelConditionalObject<S
     return paywall;
 }
 
+//TODO: Filetypes can likely be optimized - either use &str or html_editor::parse output
+//
+trait PaywallCheck {
+    fn is_paywalled(&self) -> bool;
+}
+
+impl PaywallCheck for String {
+    fn is_paywalled(&self) -> bool {return self.contains("class=\"PAYWALLED\"");}
+}
+
+
 fn noauth_manipulation(x: String) -> String {
-    if x.contains(".PAYWALL") {
-        let with_paidauth = paidauth_manipulation(x);
+    let with_paidauth = paidauth_manipulation(x.clone());
+
+    if x.is_paywalled() {
         return remove_paywalled_content(&with_paidauth, "./paywall/registerwall.html");
     } else {
-        return x.to_string();
+        return with_paidauth.to_string();
     }
 }
 
 fn userunconfirmed_manipulation(x: String) -> String {
-    if x.contains(".PAYWALL") {
-        let with_paidauth = paidauth_manipulation(x);
+    let with_paidauth = paidauth_manipulation(x.clone());
+    if x.is_paywalled() {
         return remove_paywalled_content(&with_paidauth, "./paywall/verifywall.html");
     } else {
-        return x.to_string();
+        return with_paidauth.to_string();
     }
 }
 
 fn userconfirmed_manipulation(x: String) -> String {
-    if x.contains(".PAYWALL") {
-        let with_paidauth = paidauth_manipulation(x);
+    let with_paidauth = paidauth_manipulation(x.clone());
+    if x.is_paywalled() {
         return remove_paywalled_content(&with_paidauth, "./paywall/paywall.html");
     } else {
-        return x.to_string();
+        return with_paidauth.to_string();
     }
 }
 
