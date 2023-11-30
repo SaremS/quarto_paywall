@@ -1,4 +1,7 @@
 pub mod paywall_server;
+
+///Factory method to create a paywall server from its key components
+///(i.e. recursive filereader, object manipulator, paywall extractor)
 pub mod paywall_server_factory;
 pub mod quarto_paywall;
 pub mod recursive_filereader;

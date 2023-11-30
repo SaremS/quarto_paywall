@@ -21,6 +21,9 @@ impl PaywallArticle {
         };
     }
 
+
+    ///same as `.from_html_string` but with `html: String` instead of `html: &str`
+    ///This made the paywall logic a lit simpler to implement
     pub fn from_html_string_noref(html: String, link: &str) -> Option<PaywallArticle> {
         let html_doc = parse(&html).unwrap();
 

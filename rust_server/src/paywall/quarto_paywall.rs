@@ -1,32 +1,36 @@
-use std::collections::HashMap;
 use std::fs;
 
 use html_editor::{operation::*, parse, Element};
 
-use crate::compose;
-use crate::models::{PaywallArticle, AuthLevel};
+use crate::models::{AuthLevel, PaywallArticle};
 use crate::paywall::{
-    paywall_server_factory, AuthLevelConditionalObject, PaywallItem, PaywallServer,
-    PaywallServerFactory, RecursiveFileReader, RecursiveFileReaderString,
-    SessionConditionalManipulation, SessionConditionalObject, AuthLevelManipulatorByFn
+    paywall_server_factory, AuthLevelConditionalObject, AuthLevelManipulatorByFn, PaywallServer,
+    RecursiveFileReaderString,
 };
 use crate::security::xor_hash;
-use crate::utils::{AdvancedEditable, AdvancedDeletable};
+use crate::utils::{AdvancedDeletable, AdvancedEditable};
 
-pub fn make_quarto_paywall<V: PaywallServer<String, AuthLevelConditionalObject<String>>>(base_dir: &str) -> V {
+pub fn make_quarto_paywall<V: PaywallServer<String, AuthLevelConditionalObject<String>>>(
+    base_dir: &str,
+) -> V {
     let filereader = RecursiveFileReaderString::new(base_dir, vec!["html"]);
-    
-    let manipulation: Vec<(AuthLevel, fn(String)->String)> = vec![
+
+    let manipulation: Vec<(AuthLevel, fn(String) -> String)> = vec![
         (AuthLevel::NoAuth, noauth_manipulation),
         (AuthLevel::UserUnconfirmed, userunconfirmed_manipulation),
         (AuthLevel::UserConfirmed, userconfirmed_manipulation),
-        (AuthLevel::PaidAuth, paidauth_manipulation)
+        (AuthLevel::PaidAuth, paidauth_manipulation),
     ]; //compiler throws an error if we remove the type hint
-    let manipulator: AuthLevelManipulatorByFn<String, String> = AuthLevelManipulatorByFn::new(manipulation, |x| xor_hash(&x));
-    
+    let manipulator: AuthLevelManipulatorByFn<String, String> =
+        AuthLevelManipulatorByFn::new(manipulation, |x| xor_hash(&x));
+
     let paywall_extraction = PaywallArticle::from_html_string_noref;
 
-    let paywall = paywall_server_factory::<String, String, AuthLevelConditionalObject<String>, V>(filereader, manipulator, paywall_extraction);
+    let paywall = paywall_server_factory::<String, String, AuthLevelConditionalObject<String>, V>(
+        filereader,
+        manipulator,
+        paywall_extraction,
+    );
 
     return paywall;
 }
