@@ -1,8 +1,9 @@
-use std::{path::PathBuf, collections::HashMap};
+use std::{collections::HashMap, path::PathBuf};
 
 use actix_files as fs;
 use actix_session::Session;
 use actix_web::{
+    http,
     web::{Bytes, Data},
     HttpRequest, HttpResponse, Responder, Result,
 };
@@ -10,22 +11,28 @@ use futures::stream::once;
 
 use crate::database::Database;
 use crate::envvars::EnvVarLoader;
-use crate::inmemory_html_server::InMemoryHtml;
 use crate::inmemory_static_files::InMemoryStaticFiles;
 use crate::models::{AuthLevel, SessionStatus};
+use crate::paywall::{AuthLevelConditionalObject, ContentAndHash, PaywallItem, PaywallServer};
 use crate::security::session_status_from_session;
-use crate::paywall::{PaywallItem, AuthLevelConditionalObject, PaywallServer};
 
+type HashMapServer = HashMap<String, PaywallItem<String, AuthLevelConditionalObject<String>>>;
 
 pub async fn index(
-    in_memory_html: Data<InMemoryHtml>,
+    in_memory_html: Data<HashMapServer>,
     session: Session,
     env_var_loader: Data<EnvVarLoader>,
 ) -> Result<impl Responder> {
     let session_status =
         session_status_from_session(&session, &env_var_loader.get_jwt_secret_key()).await;
 
-    let output = in_memory_html.get("index.html", &session_status).await;
+    let path = format!(
+        "{}/{}",
+        &env_var_loader.get_path_static_files(),
+        "index.html"
+    );
+
+    let output = in_memory_html.get_content(&path, &session_status).await;
 
     match output {
         Some(html) => {
@@ -46,7 +53,6 @@ pub async fn static_files(req: HttpRequest) -> Result<fs::NamedFile> {
     Ok(fs::NamedFile::open(path)?)
 }
 
-
 pub async fn in_memory_static_files(
     req: HttpRequest,
     in_memory_static: Data<InMemoryStaticFiles>,
@@ -64,8 +70,6 @@ pub async fn in_memory_static_files(
     }
 }
 
-type HashMapServer = HashMap<String, PaywallItem<String, AuthLevelConditionalObject<String>>>;
-
 pub async fn html_files(
     req: HttpRequest,
     hash_map_server: Data<HashMapServer>,
@@ -79,55 +83,35 @@ pub async fn html_files(
     inplace_update_auth(&mut session_status, db, &req).await;
 
     let query_path: String = req.match_info().query("filename").parse().unwrap();
-    let path = format!("{}/{}", env_var_loader.get_path_static_files(), &query_path); 
+    let path = format!("{}/{}", env_var_loader.get_path_static_files(), &query_path);
 
-    let output = hash_map_server.get_content(&path, &session_status).await;
-
-    match output {
-        Some(html) => {
-            let body = once(async move { Ok::<_, actix_web::Error>(Bytes::from(html)) });
-            return Ok(HttpResponse::Ok()
-                .content_type("text/html; charset=utf-8")
-                .streaming(body));
+    if let Some(ContentAndHash { content, hash }) = hash_map_server
+        .get_content_and_hash(&path, &session_status)
+        .await
+    {
+        if let Some(if_none_match) = req.headers().get(http::header::IF_NONE_MATCH) {
+            if let Ok(if_none_match) = if_none_match.to_str() {
+                if if_none_match == hash {
+                    return Ok(HttpResponse::NotModified().finish());
+                }
+            }
         }
-        None => return Ok(HttpResponse::NotFound().body("Not found")),
+        let body = once(async move { Ok::<_, actix_web::Error>(Bytes::from(content)) });
+        return Ok(HttpResponse::Ok()
+            .insert_header((http::header::ETAG, hash))
+            .content_type("text/html; charset=utf-8")
+            .streaming(body));
+    } else {
+        return Ok(HttpResponse::NotFound().body("Not found"));
     }
 }
-
-/*pub async fn html_files(
-    req: HttpRequest,
-    in_memory_html: Data<InMemoryHtml>,
-    db: Data<dyn Database>,
-    session: Session,
-    env_var_loader: Data<EnvVarLoader>,
-) -> Result<impl Responder> {
-    let mut session_status =
-        session_status_from_session(&session, &env_var_loader.get_jwt_secret_key()).await;
-
-    inplace_update_auth(&mut session_status, db, &req).await;
-
-    let path: String = req.match_info().query("filename").parse().unwrap();
-
-    let output = in_memory_html.get(&path, &session_status).await;
-
-    match output {
-        Some(html) => {
-            let body = once(async move { Ok::<_, actix_web::Error>(Bytes::from(html)) });
-            return Ok(HttpResponse::Ok()
-                .content_type("text/html; charset=utf-8")
-                .streaming(body));
-        }
-        None => return Ok(HttpResponse::NotFound().body("Not found")),
-    }
-}*/
 
 async fn inplace_update_auth(
     session_status: &mut SessionStatus,
     db: Data<dyn Database>,
     http_request: &HttpRequest,
 ) {
-    if session_status.auth_level == AuthLevel::UserUnconfirmed
-    {
+    if session_status.auth_level == AuthLevel::UserUnconfirmed {
         let target_article = http_request.match_info().as_str();
         let user_id = session_status.user_id.unwrap();
 

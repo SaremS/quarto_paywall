@@ -39,7 +39,6 @@ async fn main() -> std::io::Result<()> {
     let db_arc: Arc<dyn Database> = Arc::new(db_base);
     let db = Data::from(db_arc);
  
-    let in_memory_html = Data::new(InMemoryHtml::new(&env_var_loader.get_path_static_files()));
     let in_memory_static = Data::new(InMemoryStaticFiles::new(&env_var_loader.get_path_static_files()));
 
     let mail_verifier = EmailDevice::new_from_envvars(&env_var_loader);
@@ -64,7 +63,6 @@ async fn main() -> std::io::Result<()> {
             .app_data(db.clone())
             .app_data(env_var_data.clone())
             .app_data(mail_verifier_data.clone())
-            .app_data(in_memory_html.clone())
             .app_data(in_memory_static.clone())
             .app_data(purchase_handler_data.clone())
             .app_data(quarto_paywall_arc.clone())

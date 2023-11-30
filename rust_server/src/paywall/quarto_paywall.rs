@@ -1,14 +1,14 @@
 use std::fs;
 
 use html_editor::{operation::*, parse, Element};
+use md5;
 
 use crate::models::{AuthLevel, PaywallArticle};
-use crate::price::Price;
 use crate::paywall::{
     paywall_server_factory, AuthLevelConditionalObject, AuthLevelManipulatorByFn, PaywallServer,
     RecursiveFileReaderString,
 };
-use crate::security::xor_hash;
+use crate::price::Price;
 use crate::utils::{AdvancedDeletable, AdvancedEditable};
 
 pub fn make_quarto_paywall<V: PaywallServer<String, AuthLevelConditionalObject<String>>>(
@@ -23,7 +23,7 @@ pub fn make_quarto_paywall<V: PaywallServer<String, AuthLevelConditionalObject<S
         (AuthLevel::PaidAuth, paidauth_manipulation),
     ]; //compiler throws an error if we remove the type hint
     let manipulator: AuthLevelManipulatorByFn<String, String> =
-        AuthLevelManipulatorByFn::new(manipulation, |x| xor_hash(&x));
+        AuthLevelManipulatorByFn::new(manipulation, |x| format!("{:x}", md5::compute(x)));
 
     let paywall_extraction = PaywallArticle::from_html_string_noref;
 
@@ -51,17 +51,17 @@ impl PaywallExtraction for String {
     fn get_paywall_price(&self) -> Price {
         let html_doc = parse(self).unwrap();
         let paywall_div = html_doc.query(&Selector::from(".PAYWALLED")).unwrap();
-        
+
         let attr = &paywall_div.attrs;
         let price_in_minor = attr
             .into_iter()
             .find(|x| x.0 == "data-paywall-price")
             .map(|x| &x.1)
             .map(|x| x.parse().unwrap())
-            .unwrap();    
+            .unwrap();
 
-        let currency_str = attr.
-            into_iter()
+        let currency_str = attr
+            .into_iter()
             .find(|x| x.0 == "data-paywall-currency")
             .map(|x| &x.1)
             .unwrap();
@@ -99,7 +99,8 @@ fn userconfirmed_manipulation(x: String) -> String {
     if x.is_paywalled() {
         let with_paywall = remove_paywalled_content(&with_paidauth, "./paywall/paywall.html");
         let price = with_paywall.get_paywall_price();
-        let with_price = with_paywall.replace("{{ paywall-price }}", &price.get_in_major_unit_str()); 
+        let with_price =
+            with_paywall.replace("{{ paywall-price }}", &price.get_in_major_unit_str());
 
         return with_price;
     } else {
@@ -119,8 +120,6 @@ fn paidauth_manipulation_nonav(x: String) -> String {
     let with_modal = add_login_modal(&with_scripts);
     return add_login_logic(&with_modal);
 }
-
-
 
 fn add_script_links(html: String) -> String {
     let htmx_tag =
