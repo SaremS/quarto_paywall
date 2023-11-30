@@ -81,7 +81,7 @@ pub trait AdvancedDeletable {
     fn delete_all_children_after_selector(&mut self, after_selector: &Selector) -> &mut Self;
 
     ///Recursive helper function for `delete_all_children_after_selector`.
-    ///Checks if any child contains the `after_selector` somewhere down its subtree 
+    ///Checks if any child contains the `after_selector` somewhere down its subtree
     ///and deletes all nodes, subsequent to that child.
     fn recurse_and_delete_all_after(&mut self, after_selector: &Selector) -> Vec<bool>;
 }
@@ -238,8 +238,26 @@ impl AdvancedDeletable for Vec<Node> {
     }
 }
 
-pub enum ResultOrInfo<T,E,I> {
+pub enum ResultOrInfo<T, E, I> {
     Ok(T),
     Err(E),
     Info(I),
+}
+
+
+//https://stackoverflow.com/questions/45786955/how-to-compose-functions-in-rust#:~:text=3-,Answers,-Sorted%20by%3A
+#[macro_export]
+macro_rules! compose {
+    ( $last:expr ) => { $last };
+    ( $head:expr, $($tail:expr), +) => {
+        crate::utils::compose_two($head, compose!($($tail),+))
+    };
+}
+
+pub fn compose_two<A, B, C, G, F>(f: F, g: G) -> impl Fn(A) -> C
+where
+    F: Fn(A) -> B,
+    G: Fn(B) -> C,
+{
+    move |x| g(f(x))
 }

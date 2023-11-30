@@ -9,15 +9,25 @@ pub struct PathAndFile<T> {
 }
 
 pub trait RecursiveFileReader<T> {
-    fn get_paths_and_files(&self, file_extensions: Vec<&str>) -> Vec<PathAndFile<T>>;
+    fn get_paths_and_files(&self) -> Vec<PathAndFile<T>>;
 }
 
 pub struct RecursiveFileReaderString<'a> {
     base_dir: &'a str,
+    file_extensions: Vec<&'a str>,
+}
+
+impl<'a> RecursiveFileReaderString<'a> {
+    pub fn new(base_dir: &'a str, file_extensions: Vec<&'a str>) -> RecursiveFileReaderString<'a> {
+        return RecursiveFileReaderString {
+            base_dir,
+            file_extensions,
+        };
+    }
 }
 
 impl<'a> RecursiveFileReader<String> for RecursiveFileReaderString<'a> {
-    fn get_paths_and_files(&self, file_extensions: Vec<&str>) -> Vec<PathAndFile<String>> {
+    fn get_paths_and_files(&self) -> Vec<PathAndFile<String>> {
         let mut result: Vec<PathAndFile<String>> = Vec::new();
 
         for entry in WalkDir::new(self.base_dir)
@@ -28,7 +38,7 @@ impl<'a> RecursiveFileReader<String> for RecursiveFileReaderString<'a> {
             if path.is_file()
                 && path
                     .extension()
-                    .and_then(|s| s.to_str().map(|x| file_extensions.contains(&x)))
+                    .and_then(|s| s.to_str().map(|x| self.file_extensions.contains(&x)))
                     .unwrap_or_else(|| false)
             //if file extension can be converted to str
             //(`Some(&str)`), check if extension is contained

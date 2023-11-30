@@ -10,7 +10,7 @@ pub trait SessionConditionalManipulation<S: Clone, T: Clone + Send + Sync, U: Se
     fn manipulate_object(&self, input: S) -> U;
 }
 
-pub struct AuthLevelManipulatorByFn<S: Clone, T: Send + Sync> {
+pub struct AuthLevelManipulatorByFn<S: Clone, T: Clone + Send + Sync> {
     hash_fun: fn(T) -> String,
     auth_and_funs: Vec<(AuthLevel, fn(S) -> T)>,
 }
