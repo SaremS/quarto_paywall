@@ -13,7 +13,9 @@ use crate::database::Database;
 use crate::envvars::EnvVarLoader;
 use crate::inmemory_static_files::InMemoryStaticFiles;
 use crate::models::{AuthLevel, SessionStatus};
-use crate::paywall::{AuthLevelConditionalObject, ContentAndHash, PaywallItem, PaywallServer};
+use crate::paywall::{
+    AuthLevelConditionalObject, ContentAndHash, OptionOrHashMatch, PaywallServer,
+};
 use crate::security::session_status_from_session;
 
 pub async fn index<V: PaywallServer<String, AuthLevelConditionalObject<String>>>(
@@ -68,14 +70,13 @@ pub async fn in_memory_static_files(
     }
 }
 
-pub async fn html_files<V: PaywallServer<String, AuthLevelConditionalObject<String>>>(
+pub async fn html_files<V: PaywallServer<String, AuthLevelConditionalObject<String>> + std::marker::Sync> (
     req: HttpRequest,
     hash_map_server: Data<V>,
     db: Data<dyn Database>,
     session: Session,
     env_var_loader: Data<EnvVarLoader>,
 ) -> Result<impl Responder> {
-    use log::debug;
     let mut session_status =
         session_status_from_session(&session, &env_var_loader.get_jwt_secret_key()).await;
 
@@ -83,27 +84,43 @@ pub async fn html_files<V: PaywallServer<String, AuthLevelConditionalObject<Stri
 
     let query_path: String = req.match_info().query("filename").parse().unwrap();
     let path = format!("/{}", query_path);
-    debug!("{}", path);
 
-    if let Some(ContentAndHash { content, hash }) = hash_map_server
-        .get_content_and_hash(&path, &session_status)
-        .await
-    {
-        if let Some(if_none_match) = req.headers().get(http::header::IF_NONE_MATCH) {
-            if let Ok(if_none_match) = if_none_match.to_str() {
-                if if_none_match == hash {
-                    return Ok(HttpResponse::NotModified().finish());
-                }
-            }
+    let content_or_etag_match = hash_map_server
+        .get_content_if_different_etag(
+            &path,
+            &session_status,
+            req.headers().get(http::header::IF_NONE_MATCH),
+        )
+        .await;
+
+    match content_or_etag_match {
+        OptionOrHashMatch::Some(ContentAndHash { content, hash }) => {
+            let body = once(async move { Ok::<_, actix_web::Error>(Bytes::from(content)) });
+            return Ok(HttpResponse::Ok()
+                .insert_header((http::header::ETAG, hash))
+                .content_type("text/html; charset=utf-8")
+                .streaming(body));
         }
-        let body = once(async move { Ok::<_, actix_web::Error>(Bytes::from(content)) });
-        return Ok(HttpResponse::Ok()
-            .insert_header((http::header::ETAG, hash))
-            .content_type("text/html; charset=utf-8")
-            .streaming(body));
-    } else {
-        return Ok(HttpResponse::NotFound().body("Not found"));
+        OptionOrHashMatch::HashMatch => {
+            return Ok(HttpResponse::NotModified().finish());
+        }
+        OptionOrHashMatch::None => {
+            return Ok(HttpResponse::NotFound().body("Not found"));
+        }
     }
+}
+
+fn string_matches_header_option(
+    string: &str,
+    header_option: Option<&http::header::HeaderValue>,
+) -> bool {
+    if let Some(header) = header_option {
+        if let Ok(header_str) = header.to_str() {
+            return string == header_str;
+        }
+    }
+
+    return false;
 }
 
 async fn inplace_update_auth(

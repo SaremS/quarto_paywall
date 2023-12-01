@@ -5,7 +5,11 @@ use async_trait::async_trait;
 use crate::models::{PaywallArticle, SessionStatus};
 use crate::paywall::{ContentAndHash, SessionConditionalObject};
 
-
+pub enum OptionOrHashMatch<T> {
+    Some(T),
+    None,
+    HashMatch,
+}
 
 #[async_trait]
 pub trait PaywallServer<T: Clone + Sync + Send, U: SessionConditionalObject<T>> {
@@ -17,6 +21,29 @@ pub trait PaywallServer<T: Clone + Sync + Send, U: SessionConditionalObject<T>> 
     ) -> Option<ContentAndHash<T>>;
     async fn get_content(&self, target: &str, session_status: &SessionStatus) -> Option<T>;
     async fn get_hash(&self, target: &str, session_status: &SessionStatus) -> Option<String>;
+    async fn get_content_if_different_etag(
+        &self,
+        target: &str,
+        session_status: &SessionStatus,
+        header_option: Option<&actix_web::http::header::HeaderValue>,
+    ) -> OptionOrHashMatch<ContentAndHash<T>> {
+        if let Some(content_and_hash) = self.get_content_and_hash(target, session_status).await
+        //target exists
+        {
+            if let Some(header) = header_option {
+                //header exists
+                if let Ok(target_hash) = header.to_str() {
+                    //header can be converted to string
+                    if content_and_hash.hash == target_hash {
+                        //content hash matches etag hash
+                        return OptionOrHashMatch::HashMatch;
+                    }
+                }
+            }
+            return OptionOrHashMatch::Some(content_and_hash);
+        }
+        return OptionOrHashMatch::None;
+    }
     async fn has_paywall(&self, target: &str) -> bool;
     async fn get_paywall_article(&self, target: &str) -> Option<PaywallArticle>;
 }
@@ -70,11 +97,10 @@ impl<T: Clone + Sync + Send, U: SessionConditionalObject<T>> PaywallServer<T, U>
         let query_option = self.get(target);
         return match query_option {
             Some(object) => object.get_paywall_article().await,
-            None => None
+            None => None,
         };
     }
 }
-
 
 pub struct PaywallItem<T: Clone + Sync + Send, U: SessionConditionalObject<T>> {
     object: U,
@@ -85,7 +111,11 @@ pub struct PaywallItem<T: Clone + Sync + Send, U: SessionConditionalObject<T>> {
 impl<T: Clone + Sync + Send, U: SessionConditionalObject<T>> PaywallItem<T, U> {
     pub fn new(object: U, paywall_article: Option<PaywallArticle>) -> PaywallItem<T, U> {
         let _marker = std::marker::PhantomData;
-        return PaywallItem {object, paywall_article, _marker};
+        return PaywallItem {
+            object,
+            paywall_article,
+            _marker,
+        };
     }
 }
 
