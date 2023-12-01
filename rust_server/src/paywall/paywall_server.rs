@@ -18,6 +18,7 @@ pub trait PaywallServer<T: Clone + Sync + Send, U: SessionConditionalObject<T>> 
     async fn get_content(&self, target: &str, session_status: &SessionStatus) -> Option<T>;
     async fn get_hash(&self, target: &str, session_status: &SessionStatus) -> Option<String>;
     async fn has_paywall(&self, target: &str) -> bool;
+    async fn get_paywall_article(&self, target: &str) -> Option<PaywallArticle>;
 }
 
 #[async_trait]
@@ -64,6 +65,14 @@ impl<T: Clone + Sync + Send, U: SessionConditionalObject<T>> PaywallServer<T, U>
             None => false,
         };
     }
+
+    async fn get_paywall_article(&self, target: &str) -> Option<PaywallArticle> {
+        let query_option = self.get(target);
+        return match query_option {
+            Some(object) => object.get_paywall_article().await,
+            None => None
+        };
+    }
 }
 
 
@@ -98,5 +107,9 @@ impl<T: Clone + Sync + Send, U: SessionConditionalObject<T>> PaywallItem<T, U> {
             Some(_) => true,
             None => false,
         };
+    }
+
+    async fn get_paywall_article(&self) -> Option<PaywallArticle> {
+        return self.paywall_article.clone();
     }
 }

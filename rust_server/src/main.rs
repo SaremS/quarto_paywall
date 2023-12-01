@@ -3,7 +3,6 @@ use std::{collections::HashMap,sync::Arc};
 use actix_web::{middleware::Logger, web::{Data, get, post}, App, HttpServer};
 
 use rust_server::database::{Database, InMemoryDb};
-use rust_server::inmemory_html_server::InMemoryHtml;
 use rust_server::inmemory_static_files::InMemoryStaticFiles;
 use rust_server::routes::{
     auth::{get_login, get_logout_user, get_register, get_user_dashboard, get_user_dashboard_template,
@@ -83,7 +82,7 @@ async fn main() -> std::io::Result<()> {
             .route("/auth/login-user", post().to(put_login_user))
             .route("/auth/logout-user", get().to(get_logout_user))
             .route("/auth/user-dashboard", get().to(get_user_dashboard))
-            .route("/purchase/checkout", post().to(stripe_checkout))
+            .route("/purchase/checkout", post().to(stripe_checkout::<HashMapServer>))
             .route("/purchase/stripe-webhook", post().to(stripe_webhook_add_article))
             .route("/auth/user-dashboard-template", get().to(get_user_dashboard_template))
             .route("/confirm-user", get().to(confirm_user))

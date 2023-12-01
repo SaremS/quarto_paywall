@@ -13,8 +13,7 @@ use stripe::{
 };
 
 use crate::envvars::EnvVarLoader;
-use crate::inmemory_html_server::InMemoryHtml;
-use crate::models::{PurchaseIntent, PurchaseReference};
+use crate::models::{PaywallArticle, PurchaseIntent, PurchaseReference};
 use crate::purchase::{PurchaseError, PurchaseHandler};
 use crate::utils::ResultOrInfo;
 
@@ -30,24 +29,17 @@ impl PurchaseHandler for StripePurchaseHandler {
         &self,
         user_id: &usize,
         purchase_intent: &PurchaseIntent,
-        paywall: Data<InMemoryHtml>,
+        article: &PaywallArticle,
     ) -> Result<String, PurchaseError> {
-        if let Some(article) = paywall
-            .get_paywall_data(&purchase_intent.purchase_target)
-            .await
-        {
-            let target_domainpath = self.domain_url.clone() + &purchase_intent.purchase_target;
-            let reference = PurchaseReference {
-                user_id: user_id.clone(),
-                article,
-            };
-            let stripe_checkout_url = self
-                .get_stripe_checkout_url(&reference, &target_domainpath)
-                .await;
-            return Ok(stripe_checkout_url);
-        } else {
-            return Err(PurchaseError::TargetNotFoundError);
-        }
+        let target_domainpath = self.domain_url.clone() + &purchase_intent.purchase_target;
+        let reference = PurchaseReference {
+            user_id: user_id.clone(),
+            article: article.clone(),
+        };
+        let stripe_checkout_url = self
+            .get_stripe_checkout_url(&reference, &target_domainpath)
+            .await;
+        return Ok(stripe_checkout_url);
     }
 
     fn webhook_to_purchase_reference(

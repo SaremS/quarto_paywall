@@ -5,8 +5,7 @@ use actix_web::{
 use async_trait::async_trait;
 use thiserror::Error;
 
-use crate::inmemory_html_server::InMemoryHtml;
-use crate::models::{PurchaseIntent, PurchaseReference};
+use crate::models::{PurchaseIntent, PurchaseReference, PaywallArticle};
 use crate::utils::ResultOrInfo;
 
 #[async_trait]
@@ -15,7 +14,7 @@ pub trait PurchaseHandler: Sync + Send {
         &self,
         user_id: &usize,
         purchase_intent: &PurchaseIntent,
-        paywall: Data<InMemoryHtml>,
+        article: &PaywallArticle
     ) -> Result<String, PurchaseError>;
     fn webhook_to_purchase_reference(
         &self,

@@ -77,13 +77,15 @@ pub async fn html_files(
     session: Session,
     env_var_loader: Data<EnvVarLoader>,
 ) -> Result<impl Responder> {
+    use log::debug;
     let mut session_status =
         session_status_from_session(&session, &env_var_loader.get_jwt_secret_key()).await;
 
     inplace_update_auth(&mut session_status, db, &req).await;
 
     let query_path: String = req.match_info().query("filename").parse().unwrap();
-    let path = format!("{}/{}", env_var_loader.get_path_static_files(), &query_path);
+    let path = format!("/{}", query_path);
+    debug!("{}", path);
 
     if let Some(ContentAndHash { content, hash }) = hash_map_server
         .get_content_and_hash(&path, &session_status)

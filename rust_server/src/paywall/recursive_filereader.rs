@@ -47,7 +47,11 @@ impl<'a> RecursiveFileReader<String> for RecursiveFileReaderString<'a> {
             {
                 match fs::read_to_string(path) {
                     Ok(file_content) => {
-                        let file_path = path.to_string_lossy().to_string();
+                        let file_path = path
+                            .to_string_lossy()
+                            .to_string()
+                            .replace(self.base_dir, ""); //base dir is only necessary to read from
+                                                         //disk
                         let path_and_file = PathAndFile {
                             file_path,
                             file_content,

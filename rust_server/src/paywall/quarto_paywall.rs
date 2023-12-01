@@ -11,6 +11,7 @@ use crate::paywall::{
 use crate::price::Price;
 use crate::utils::{AdvancedDeletable, AdvancedEditable};
 
+
 pub fn make_quarto_paywall<V: PaywallServer<String, AuthLevelConditionalObject<String>>>(
     base_dir: &str,
 ) -> V {
