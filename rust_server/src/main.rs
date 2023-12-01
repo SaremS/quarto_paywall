@@ -67,13 +67,13 @@ async fn main() -> std::io::Result<()> {
             .app_data(quarto_paywall_arc.clone())
             .wrap(Logger::default())
             .wrap(make_session_middleware())
-            .route("/", get().to(index))
+            .route("/", get().to(index::<HashMapServer>))
             .route("/{filename:[0-9a-zA-Z_\\.-]+\\.(?:js|css|jpg|jpeg|json)$}", get().to(static_files)) //files in main folder
-            .route("/{filename:[0-9a-za-z_\\.-]+\\.html$}", get().to(html_files))
+            .route("/{filename:[0-9a-za-z_\\.-]+\\.html$}", get().to(html_files::<HashMapServer>))
             .route("/{filename:(?:posts|images)\\/[0-9a-za-z_\\.-]+\\.(?:jpg|jpeg|json)$}", get().to(static_files)) //files in sub-folders
             .route("/{filename:(?:posts|images)\\/[0-9a-za-z_\\.-]+\\.(?:js|css)$}", get().to(in_memory_static_files)) //files in sub-folders
 
-            .route("/{filename:(?:posts|images)\\/[0-9a-zA-Z_\\.-]+\\.html$}", get().to(html_files)) //files in sub-folders
+            .route("/{filename:(?:posts|images)\\/[0-9a-zA-Z_\\.-]+\\.html$}", get().to(html_files::<HashMapServer>)) //files in sub-folders
             .route("/{filename:site_libs\\/[0-9a-zA-Z_\\.-]+\\/[0-9a-zA-Z_\\.-]+\\.(?:js|css|jpg|jpeg)$}", get().to(static_files)) //styles and packages from quarto
             .route("/{filename:site_libs\\/bootstrap/bootstrap-icons.[0-9a-z\\?]+$}", get().to(static_files))
             .route("/auth/register", get().to(get_register))

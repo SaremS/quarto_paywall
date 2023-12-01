@@ -16,10 +16,8 @@ use crate::models::{AuthLevel, SessionStatus};
 use crate::paywall::{AuthLevelConditionalObject, ContentAndHash, PaywallItem, PaywallServer};
 use crate::security::session_status_from_session;
 
-type HashMapServer = HashMap<String, PaywallItem<String, AuthLevelConditionalObject<String>>>;
-
-pub async fn index(
-    in_memory_html: Data<HashMapServer>,
+pub async fn index<V: PaywallServer<String, AuthLevelConditionalObject<String>>>(
+    in_memory_html: Data<V>,
     session: Session,
     env_var_loader: Data<EnvVarLoader>,
 ) -> Result<impl Responder> {
@@ -70,9 +68,9 @@ pub async fn in_memory_static_files(
     }
 }
 
-pub async fn html_files(
+pub async fn html_files<V: PaywallServer<String, AuthLevelConditionalObject<String>>>(
     req: HttpRequest,
-    hash_map_server: Data<HashMapServer>,
+    hash_map_server: Data<V>,
     db: Data<dyn Database>,
     session: Session,
     env_var_loader: Data<EnvVarLoader>,
