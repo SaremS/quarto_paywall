@@ -1,7 +1,6 @@
 pub mod database;
 pub mod envvars;
 pub mod errors;
-pub mod inmemory_static_files;
 pub mod models;
 
 ///This module holds the key logic for a pay-per-article paywall
