@@ -13,7 +13,7 @@ use crate::database::Database;
 use crate::envvars::EnvVarLoader;
 use crate::models::{AuthLevel, SessionStatus};
 use crate::paywall::{
-    AuthLevelConditionalObject, ContentAndHash, FileserverWrapper, OptionOrHashMatch, PaywallServer,
+    AuthLevelConditionalObject, ContentAndHash, OptionOrHashMatch, PaywallServer,
 };
 use crate::security::session_status_from_session;
 
@@ -60,46 +60,6 @@ pub async fn static_files(req: HttpRequest) -> Result<fs::NamedFile> {
     let path_suffix: PathBuf = req.match_info().query("filename").parse().unwrap();
     path.push(path_suffix);
     Ok(fs::NamedFile::open(path)?)
-}
-
-pub async fn in_memory_static_files<
-    V: PaywallServer<String, AuthLevelConditionalObject<String>> + std::marker::Sync,
->(
-    req: HttpRequest,
-    session: Session,
-    server: Data<FileserverWrapper<V>>,
-    env_var_loader: Data<EnvVarLoader>,
-) -> Result<impl Responder> {
-    let session_status =
-        session_status_from_session(&session, &env_var_loader.get_jwt_secret_key()).await;
-
-    let query_path: String = req.match_info().query("filename").parse().unwrap();
-    let path = format!("/{}", query_path);
-
-    let content_or_etag_match = server
-        .server
-        .get_content_if_different_etag(
-            &path,
-            &session_status,
-            req.headers().get(http::header::IF_NONE_MATCH),
-        )
-        .await;
-
-    match content_or_etag_match {
-        OptionOrHashMatch::Some(ContentAndHash { content, hash }) => {
-            let body = once(async move { Ok::<_, actix_web::Error>(Bytes::from(content)) });
-            return Ok(HttpResponse::Ok()
-                .insert_header((http::header::ETAG, hash))
-                .content_type("text/html; charset=utf-8")
-                .streaming(body));
-        }
-        OptionOrHashMatch::HashMatch => {
-            return Ok(HttpResponse::NotModified().finish());
-        }
-        OptionOrHashMatch::None => {
-            return Ok(HttpResponse::NotFound().body("Not found"));
-        }
-    }
 }
 
 pub async fn html_files<
