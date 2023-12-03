@@ -7,7 +7,7 @@ use askama::Template;
 
 use crate::database::Database;
 use crate::envvars::EnvVarLoader;
-use crate::user_communication::VerifyAndDeleteUser;
+use crate::user_communication::{EmailSender, EmailClient, VerificationHandler};
 use crate::models::{AuthLevel, LoginUser, RegisterUser};
 use crate::security::session_status_from_session;
 use crate::templates::{
@@ -122,7 +122,8 @@ pub async fn put_register_user(
     session: Session,
     user: Json<RegisterUser>,
     db: Data<dyn Database>,
-    verifier: Data<dyn VerifyAndDeleteUser>,
+    verifier: Data<VerificationHandler>,
+    email_sender: Data<dyn EmailSender>
 ) -> Result<impl Responder> {
     let create_user_result = db.create_user(user.into_inner()).await;
 
@@ -130,7 +131,7 @@ pub async fn put_register_user(
     match create_user_result {
         Ok(user_created) => {
             verifier
-                .send_registration_verification(&user_created.user_id, &user_created.email)
+                .send_registration_verification_email(&user_created.user_id, &user_created.email, email_sender.get_ref())
                 .await;
 
             result_content = RegisterSuccessTemplate {
@@ -217,7 +218,8 @@ pub async fn get_delete_user_confirmed(
     session: Session,
     db: Data<dyn Database>,
     env_var_loader: Data<EnvVarLoader>,
-    verifier: Data<dyn VerifyAndDeleteUser>,
+    verifier: Data<VerificationHandler>,
+    email_sender: Data<dyn EmailSender>
 ) -> Result<impl Responder> {
     let session_status =
         session_status_from_session(&session, &env_var_loader.get_jwt_secret_key()).await;
@@ -226,7 +228,7 @@ pub async fn get_delete_user_confirmed(
     let user = db.get_user_by_id(user_id).await;
     let email = user.unwrap().email;
 
-    verifier.send_deletion_verification(&user_id, &email).await;
+    verifier.send_deletion_verification_email(&user_id, &email, email_sender.get_ref()).await;
 
     let delete_user_template_confirmed = DeleteUserConfirmedTemplate {}.render().unwrap();
 

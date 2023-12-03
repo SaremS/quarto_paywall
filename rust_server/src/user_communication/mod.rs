@@ -1,5 +1,9 @@
-pub mod verify_and_delete_user;
-pub mod email_device;
+///Send email messages 
+pub mod email_client;
 
-pub use verify_and_delete_user::*;
-pub use email_device::*;
+///Abstraction to handle user creation and deletion via some mean
+///of verification from the user
+pub mod verification_handler;
+
+pub use email_client::*;
+pub use verification_handler::*;

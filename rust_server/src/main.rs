@@ -13,7 +13,7 @@ use rust_server::routes::{
 use rust_server::security::{make_session_middleware, ScryptHashing};
 use rust_server::models::RegisterUser;
 use rust_server::envvars::EnvVarLoader;
-use rust_server::user_communication::{EmailDevice, VerifyAndDeleteUser};
+use rust_server::user_communication::{EmailClient, EmailSender, VerificationHandler};
 use rust_server::purchase::{PurchaseHandler, StripePurchaseHandler};
 use rust_server::paywall::{make_quarto_paywall, AuthLevelConditionalObject, PaywallItem};
 
@@ -38,9 +38,17 @@ async fn main() -> std::io::Result<()> {
     let db = Data::from(db_arc);
  
 
-    let mail_verifier = EmailDevice::new_from_envvars(&env_var_loader);
-    let mail_verifier_arc: Arc<dyn VerifyAndDeleteUser> = Arc::new(mail_verifier);
-    let mail_verifier_data = Data::from(mail_verifier_arc);
+    let mail_client = EmailClient::new_from_envvars(&env_var_loader);
+    let mail_client_arc: Arc<dyn EmailSender> = Arc::new(mail_client);
+    let mail_client_data = Data::from(mail_client_arc);
+
+    let verification_handler = VerificationHandler::new(
+            env_var_loader.get_mail_secret_key(),
+            env_var_loader.get_deletion_secret_key(),
+            env_var_loader.get_domain_url()
+        );
+    let verification_handler_arc: Arc<VerificationHandler> = Arc::new(verification_handler);
+    let verification_handler_data = Data::from(verification_handler_arc);
 
     let purchase_handler = StripePurchaseHandler::new_from_envvars(&env_var_loader);
     let purchase_handler_arc: Arc<dyn PurchaseHandler> = Arc::new(purchase_handler);
@@ -57,8 +65,9 @@ async fn main() -> std::io::Result<()> {
         App::new()
             .app_data(db.clone())
             .app_data(env_var_data.clone())
-            .app_data(mail_verifier_data.clone())
+            .app_data(mail_client_data.clone())
             .app_data(purchase_handler_data.clone())
+            .app_data(verification_handler_data.clone())
             .app_data(quarto_paywall_arc.clone())
             .wrap(Logger::default())
             .wrap(make_session_middleware())
