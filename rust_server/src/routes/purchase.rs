@@ -19,9 +19,19 @@ pub async fn stripe_webhook_add_article(
     req: HttpRequest,
     payload: Bytes,
     db: Data<dyn Database>,
-    purchase_handler: Data<dyn PurchaseHandler>,
+    purchase_handler: Data<PurchaseHandler>,
 ) -> Result<impl Responder> {
-    let reference_result = purchase_handler.webhook_to_purchase_reference(&req, &payload);
+    let payload_str = std::str::from_utf8(&payload).unwrap();
+    let stripe_signature = req
+        .headers()
+        .get("Stripe-Signature")
+        .unwrap()
+        .to_str()
+        .unwrap();
+
+    let reference_result = purchase_handler.stripe_webhook_to_purchase_reference(
+        &payload_str,
+        &stripe_signature).await;
     use log::debug;
 
     match reference_result {
@@ -50,7 +60,7 @@ pub async fn stripe_checkout<V: PaywallServer<String, AuthLevelConditionalObject
     purchase_intent_json: Json<PurchaseIntent>,
     env_var_loader: Data<EnvVarLoader>,
     paywall: Data<V>,
-    purchase_handler: Data<dyn PurchaseHandler>,
+    purchase_handler: Data<PurchaseHandler>,
 ) -> Result<impl Responder> {
     let purchase_intent = purchase_intent_json.into_inner();
     
@@ -60,7 +70,7 @@ pub async fn stripe_checkout<V: PaywallServer<String, AuthLevelConditionalObject
         let user_id = session_status.user_id.unwrap();
 
         let checkout_result = purchase_handler
-            .checkout(&user_id, &purchase_intent, &article)
+            .stripe_checkout(&user_id, &purchase_intent, &article)
             .await;
 
         match checkout_result {
