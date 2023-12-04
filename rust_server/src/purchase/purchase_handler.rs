@@ -1,5 +1,5 @@
 use actix_web::{
-    web::{Bytes, Data},
+    web::Bytes,
     HttpRequest,
 };
 use async_trait::async_trait;

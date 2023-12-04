@@ -13,7 +13,7 @@ use rust_server::routes::{
 use rust_server::security::{make_session_middleware, ScryptHashing};
 use rust_server::models::RegisterUser;
 use rust_server::envvars::EnvVarLoader;
-use rust_server::user_communication::{EmailMessage, EmailClient, VerificationHandler};
+use rust_server::user_communication::{EmailClient, EmailSender, VerificationHandler};
 use rust_server::purchase::{PurchaseHandler, StripePurchaseHandler};
 use rust_server::paywall::{make_quarto_paywall, AuthLevelConditionalObject, PaywallItem};
 
@@ -39,7 +39,7 @@ async fn main() -> std::io::Result<()> {
  
 
     let mail_client = EmailClient::new_from_envvars(&env_var_loader);
-    let mail_client_arc: Arc<EmailClient> = Arc::new(mail_client);
+    let mail_client_arc: Arc<dyn EmailSender> = Arc::new(mail_client);
     let mail_client_data = Data::from(mail_client_arc);
 
     let verification_handler = VerificationHandler::new(
