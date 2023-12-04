@@ -4,15 +4,10 @@ use lettre::{transport::smtp::authentication::Credentials, Message, SmtpTranspor
 
 use crate::envvars::EnvVarLoader;
 
-pub struct EmailMessage {
-    pub recipient: String,
-    pub subject: String,
-    pub body: String,
-}
 
 #[async_trait]
-pub trait EmailSender: Sync + Send {
-    async fn send(&self, message: &EmailMessage) -> Result<(), ()>;
+pub trait AbstractEmailClient: Sync + Send {
+    async fn send(&self, recipient: &str, subject: &str, body: &str) -> Result<(), ()>;
 }
 
 pub struct EmailClient {
@@ -24,14 +19,14 @@ pub struct EmailClient {
 }
 
 #[async_trait]
-impl EmailSender for EmailClient {
-    async fn send(&self, message: &EmailMessage) -> Result<(), ()> {
+impl AbstractEmailClient for EmailClient {
+    async fn send(&self, recipient: &str, subject: &str, body: &str) -> Result<(), ()> {
         let email = Message::builder()
             .from(self.get_full_sender().await.parse().unwrap())
-            .to(message.recipient.parse().unwrap())
-            .subject(message.subject.clone())
+            .to(recipient.parse().unwrap())
+            .subject(subject.clone())
             .header(ContentType::TEXT_PLAIN)
-            .body(String::from(message.body.clone()))
+            .body(String::from(body.clone()))
             .unwrap();
 
         let smtp_creds = self.get_lettre_smtp_credentials().await;

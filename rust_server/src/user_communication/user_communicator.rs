@@ -4,32 +4,35 @@ use log::error;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use crate::user_communication::EmailMessage;
+use crate::user_communication::AbstractEmailClient;
 
-pub struct VerificationHandler {
+pub struct UserCommunicator {
     mail_secret_key: String,
     deletion_secret_key: String,
     domain_url: String,
+    email_client: Box<dyn AbstractEmailClient>,
 }
 
-impl VerificationHandler {
+impl UserCommunicator {
     pub fn new(
         mail_secret_key: String,
         deletion_secret_key: String,
         domain_url: String,
-    ) -> VerificationHandler {
-        return VerificationHandler {
+        email_client: Box<dyn AbstractEmailClient>,
+    ) -> UserCommunicator {
+        return UserCommunicator {
             mail_secret_key,
             deletion_secret_key,
             domain_url,
+            email_client,
         };
     }
 
-    pub async fn make_registration_verification_email(
+    pub async fn send_registration_verification_email(
         &self,
         user_id: &usize,
         recipient: &str,
-    ) -> EmailMessage {
+    ) -> Result<(), ()> {
         let token = self
             .make_verification_token(user_id, self.mail_secret_key.clone(), Duration::days(1))
             .await;
@@ -41,12 +44,9 @@ impl VerificationHandler {
             + "! As a last step, please follow this confirmation link: \n"
             + &confirm_url;
 
-        let message = EmailMessage {
-            recipient: recipient.to_string(), 
-            subject: subject.to_string(), 
-            body};
+        let email_result = self.email_client.send(recipient, subject, &body).await;
 
-        return message;
+        return email_result;
     }
 
     pub async fn handle_registration_verification(
@@ -64,7 +64,7 @@ impl VerificationHandler {
         &self,
         user_id: &usize,
         recipient: &str,
-    ) -> EmailMessage {
+    ) -> Result<(),()> {
         let token = self
             .make_verification_token(
                 user_id,
@@ -81,12 +81,9 @@ impl VerificationHandler {
             + "! As a last step, please follow this confirmation link: \n"
             + &confirm_url;
 
-        let message = EmailMessage {
-            recipient: recipient.to_string(), 
-            subject: subject.to_string(), 
-            body};
+        let email_result = self.email_client.send(recipient, subject, &body).await;
 
-        return message;
+        return email_result;
     }
 
     pub async fn handle_deletion_verification(

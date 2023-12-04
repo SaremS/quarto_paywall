@@ -6,7 +6,7 @@ use actix_session::Session;
 use serde::Deserialize;
 
 use crate::database::Database;
-use crate::user_communication::VerificationHandler;
+use crate::user_communication::UserCommunicator;
 
 #[derive(Deserialize)]
 pub struct VerifyUserQuery {
@@ -16,9 +16,9 @@ pub struct VerifyUserQuery {
 pub async fn confirm_user(
     query: Query<VerifyUserQuery>,
     db: Data<dyn Database>,
-    verifier: Data<VerificationHandler>,
+    user_communicator: Data<UserCommunicator>,
 ) -> Result<impl Responder> {
-    let verification_result = verifier.handle_registration_verification(&query.token).await;
+    let verification_result = user_communicator.handle_registration_verification(&query.token).await;
 
     match verification_result {
         Ok(user_id) => {
@@ -47,10 +47,10 @@ pub async fn confirm_user(
 pub async fn delete_user(
     query: Query<VerifyUserQuery>,
     db: Data<dyn Database>,
-    verifier: Data<VerificationHandler>,
+    user_communicator: Data<UserCommunicator>,
     session: Session
 ) -> Result<impl Responder> {
-    let verification_result = verifier.handle_deletion_verification(&query.token).await;
+    let verification_result = user_communicator.handle_deletion_verification(&query.token).await;
 
     match verification_result {
         Ok(user_id) => {

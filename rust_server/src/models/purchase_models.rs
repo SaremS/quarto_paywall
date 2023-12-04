@@ -8,7 +8,7 @@ pub struct PurchaseIntent {
     pub purchase_target: String
 }
 
-#[derive(Serialize_tuple, Deserialize_tuple, Debug)]
+#[derive(Serialize_tuple, Deserialize_tuple, Debug, PartialEq, Eq, Clone)]
 pub struct PurchaseReference {
     pub user_id: usize,
     pub article: PaywallArticle,

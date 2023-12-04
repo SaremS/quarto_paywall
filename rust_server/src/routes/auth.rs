@@ -7,7 +7,7 @@ use askama::Template;
 
 use crate::database::Database;
 use crate::envvars::EnvVarLoader;
-use crate::user_communication::{EmailSender, VerificationHandler};
+use crate::user_communication::{AbstractEmailClient, UserCommunicator};
 use crate::models::{AuthLevel, LoginUser, RegisterUser};
 use crate::security::session_status_from_session;
 use crate::templates::{
@@ -122,19 +122,16 @@ pub async fn put_register_user(
     session: Session,
     user: Json<RegisterUser>,
     db: Data<dyn Database>,
-    verifier: Data<VerificationHandler>,
-    email_sender: Data<dyn EmailSender>
+    user_communicator: Data<UserCommunicator>,
 ) -> Result<impl Responder> {
     let create_user_result = db.create_user(user.into_inner()).await;
 
     let result_content;
     match create_user_result {
         Ok(user_created) => {
-            let mail = verifier
-                .make_registration_verification_email(&user_created.user_id, &user_created.email)
+            let _ = user_communicator
+                .send_registration_verification_email(&user_created.user_id, &user_created.email)
                 .await;
-
-            let _ = email_sender.send(&mail).await;
 
             result_content = RegisterSuccessTemplate {
                 username: user_created.username,
@@ -220,8 +217,7 @@ pub async fn get_delete_user_confirmed(
     session: Session,
     db: Data<dyn Database>,
     env_var_loader: Data<EnvVarLoader>,
-    verifier: Data<VerificationHandler>,
-    email_sender: Data<dyn EmailSender>
+    user_communicator: Data<UserCommunicator>,
 ) -> Result<impl Responder> {
     let session_status =
         session_status_from_session(&session, &env_var_loader.get_jwt_secret_key()).await;
@@ -230,8 +226,7 @@ pub async fn get_delete_user_confirmed(
     let user = db.get_user_by_id(user_id).await;
     let email = user.unwrap().email;
 
-    let email = verifier.make_deletion_verification_email(&user_id, &email).await;
-    let _ = email_sender.send(&email).await;
+    let _ = user_communicator.make_deletion_verification_email(&user_id, &email).await;
 
     let delete_user_template_confirmed = DeleteUserConfirmedTemplate {}.render().unwrap();
 

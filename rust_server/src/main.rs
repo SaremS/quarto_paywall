@@ -13,7 +13,7 @@ use rust_server::routes::{
 use rust_server::security::{make_session_middleware, ScryptHashing};
 use rust_server::models::RegisterUser;
 use rust_server::envvars::EnvVarLoader;
-use rust_server::user_communication::{EmailClient, EmailSender, VerificationHandler};
+use rust_server::user_communication::{EmailClient, UserCommunicator};
 use rust_server::purchase::{PurchaseHandler, StripeClient};
 use rust_server::paywall::{make_quarto_paywall, AuthLevelConditionalObject, PaywallItem};
 
@@ -39,16 +39,15 @@ async fn main() -> std::io::Result<()> {
  
 
     let mail_client = EmailClient::new_from_envvars(&env_var_loader);
-    let mail_client_arc: Arc<dyn EmailSender> = Arc::new(mail_client);
-    let mail_client_data = Data::from(mail_client_arc);
 
-    let verification_handler = VerificationHandler::new(
+    let user_communicator = UserCommunicator::new(
             env_var_loader.get_mail_secret_key(),
             env_var_loader.get_deletion_secret_key(),
-            env_var_loader.get_domain_url()
+            env_var_loader.get_domain_url(),
+            Box::new(mail_client)
         );
-    let verification_handler_arc: Arc<VerificationHandler> = Arc::new(verification_handler);
-    let verification_handler_data = Data::from(verification_handler_arc);
+    let user_communicator_arc = Arc::new(user_communicator);
+    let user_communicator_data = Data::from(user_communicator_arc);
 
     let stripe_client = StripeClient::new(&env_var_loader.get_stripe_webhook_key(),
         &env_var_loader.get_stripe_secret_key());
@@ -69,9 +68,8 @@ async fn main() -> std::io::Result<()> {
         App::new()
             .app_data(db.clone())
             .app_data(env_var_data.clone())
-            .app_data(mail_client_data.clone())
             .app_data(purchase_handler_data.clone())
-            .app_data(verification_handler_data.clone())
+            .app_data(user_communicator_data.clone())
             .app_data(quarto_paywall_arc.clone())
             .wrap(Logger::default())
             .wrap(make_session_middleware())
