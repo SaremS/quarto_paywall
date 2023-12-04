@@ -14,7 +14,7 @@ use rust_server::security::{make_session_middleware, ScryptHashing};
 use rust_server::models::RegisterUser;
 use rust_server::envvars::EnvVarLoader;
 use rust_server::user_communication::{EmailClient, EmailSender, VerificationHandler};
-use rust_server::purchase::{PurchaseHandler, StripePurchaseHandler};
+use rust_server::purchase::{PurchaseHandler, StripeClient};
 use rust_server::paywall::{make_quarto_paywall, AuthLevelConditionalObject, PaywallItem};
 
 
@@ -50,8 +50,12 @@ async fn main() -> std::io::Result<()> {
     let verification_handler_arc: Arc<VerificationHandler> = Arc::new(verification_handler);
     let verification_handler_data = Data::from(verification_handler_arc);
 
-    let purchase_handler = StripePurchaseHandler::new_from_envvars(&env_var_loader);
-    let purchase_handler_arc: Arc<dyn PurchaseHandler> = Arc::new(purchase_handler);
+    let stripe_client = StripeClient::new(&env_var_loader.get_stripe_webhook_key(),
+        &env_var_loader.get_stripe_secret_key());
+
+    let purchase_handler = PurchaseHandler::new(&env_var_loader.get_domain_url(),
+        Box::new(stripe_client));
+    let purchase_handler_arc = Arc::new(purchase_handler);
     let purchase_handler_data = Data::from(purchase_handler_arc);
 
     let quarto_paywall = make_quarto_paywall::<HashMapServer>(&env_var_loader.get_path_static_files());
