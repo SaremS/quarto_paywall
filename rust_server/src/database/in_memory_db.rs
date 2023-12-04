@@ -10,27 +10,35 @@ use crate::database::Database;
 use crate::errors::AuthenticationError;
 use crate::errors::SignupError;
 use crate::models::{LoginUser, PaywallArticle, RegisterUser, User, UserCreated, UserLoggedIn};
+use crate::security::HashingAlgorithm;
 
-pub struct InMemoryDb {
+ ///Simple pseudo-DB for testing
+///
+///=> Do not use in production
+pub struct InMemoryDb<T> where T: HashingAlgorithm {
     db: Arc<Mutex<HashMap<String, User>>>, //email -> User
     id_index: Arc<Mutex<HashMap<usize, String>>>, //id -> email
     username_index: Arc<Mutex<HashMap<String, String>>>, //username->email
     jwt_secret: String,
+    _marker: std::marker::PhantomData<T>
 }
 
-impl InMemoryDb {
-    pub fn new(jwt_secret: String) -> InMemoryDb {
+impl<T: HashingAlgorithm> InMemoryDb<T> {
+    pub fn new(jwt_secret: String) -> InMemoryDb<T> {
         return InMemoryDb {
             db: Arc::new(Mutex::new(HashMap::new())),
             id_index: Arc::new(Mutex::new(HashMap::new())),
             username_index: Arc::new(Mutex::new(HashMap::new())),
             jwt_secret,
+            _marker: std::marker::PhantomData
         };
     }
 }
 
 #[async_trait]
-impl Database for InMemoryDb {
+impl<T: HashingAlgorithm> Database for InMemoryDb<T> {
+
+    ///See [`crate::database::Database::create_user`]
     async fn create_user(&self, user: RegisterUser) -> Result<UserCreated, SignupError> {
         match user.validate() {
             Ok(_) => (),
@@ -46,7 +54,7 @@ impl Database for InMemoryDb {
         }
 
         if local_username_index.contains_key(&user.username) {
-            return Err(SignupError::UsernameExistsError(user.email));
+            return Err(SignupError::UsernameExistsError(user.username));
         }
 
         let new_id = local_db.len().clone();
@@ -56,7 +64,7 @@ impl Database for InMemoryDb {
             time_registered: Utc::now().timestamp() as usize,
             email: user.email,
             username: user.username,
-            password: crate::security::get_hash(&user.password),
+            password: T::get_hash(&user.password),
             is_verified: false,
             role: "user".to_string(),
             accessible_articles: HashSet::new(),
@@ -83,6 +91,7 @@ impl Database for InMemoryDb {
         return Ok(user_created);
     }
 
+    ///See [`crate::database::Database::create_admin`]
     async fn create_admin(&self, user: RegisterUser) -> Result<UserCreated, SignupError> {
         match user.validate() {
             Ok(_) => (),
@@ -103,7 +112,7 @@ impl Database for InMemoryDb {
             time_registered: Utc::now().timestamp() as usize,
             email: user.email,
             username: user.username,
-            password: crate::security::get_hash(&user.password),
+            password: T::get_hash(&user.password),
             is_verified: false,
             role: "admin".to_string(),
             accessible_articles: HashSet::new(),
@@ -129,6 +138,7 @@ impl Database for InMemoryDb {
         return Ok(user_created);
     }
 
+    ///See [`crate::database::Database::login`]
     async fn login(&self, login_user: LoginUser) -> Result<UserLoggedIn, AuthenticationError> {
         let cur_user_db = self.db.lock().await;
 
@@ -139,7 +149,8 @@ impl Database for InMemoryDb {
             }
         };
 
-        if !crate::security::verify_hash(&login_user.password, &user.password) {
+        if !T::verify_hash(&login_user.password, &user.password)
+        {
             return Err(AuthenticationError::InvalidCredentialsError);
         }
 
@@ -152,6 +163,7 @@ impl Database for InMemoryDb {
         return Ok(user_logged_in);
     }
 
+    ///See [`crate::database::Database::get_user_by_id`]
     async fn get_user_by_id(&self, id: usize) -> Option<User> {
         let local_db = self.db.lock().await;
         let local_id_index = self.id_index.lock().await;
@@ -164,6 +176,7 @@ impl Database for InMemoryDb {
         }
     }
 
+    ///See [`crate::database::Database::add_accessible_article_to_id`]
     async fn add_accessible_article_to_id(
         &self,
         id: usize,
@@ -187,6 +200,7 @@ impl Database for InMemoryDb {
         }
     }
 
+    ///See [`crate::database::Database::confirm_email_for_user_id`]
     async fn confirm_email_for_user_id(&self, id: usize) -> Result<(), ()> {
         let mut local_db = self.db.lock().await;
         let local_id_index = self.id_index.lock().await;
@@ -206,6 +220,7 @@ impl Database for InMemoryDb {
         }
     }
 
+    ///See [`crate::database::Database::user_id_has_access_by_link`]
     async fn user_id_has_access_by_link(&self, id: usize, link: &str) -> bool {
         if let Some(user) = self.get_user_by_id(id).await {
             return user
@@ -217,8 +232,8 @@ impl Database for InMemoryDb {
         }
     }
 
+    ///See [`crate::database::Database::user_id_is_verified`]
     async fn user_id_is_verified(&self, id: usize) -> bool {
-        use log::debug;
         if let Some(user) = self.get_user_by_id(id).await {
             return user.is_verified;
         } else {
@@ -226,6 +241,7 @@ impl Database for InMemoryDb {
         }
     }
 
+    ///See [`crate::database::Database::delete_user_by_id`]
     async fn delete_user_by_id(&self, id: usize) -> Result<(), ()> {
         let mut local_db = self.db.lock().await;
         let mut local_id_index = self.id_index.lock().await;
@@ -238,10 +254,10 @@ impl Database for InMemoryDb {
                 //find and remove username index
                 let username = &local_db.get(email).unwrap().username;
                 local_username_index.remove(username);
-                
+
                 //find and remove user from db
                 local_db.remove(email);
-                
+
                 //find and remove id index
                 local_id_index.remove(&id);
                 return Ok(());
@@ -252,6 +268,7 @@ impl Database for InMemoryDb {
         }
     }
 
+    ///See [`crate::database::Database::get_paywall_articles_for_user_id]
     async fn get_paywall_articles_for_user_id(&self, id: usize) -> Option<Vec<PaywallArticle>> {
         if let Some(user) = self.get_user_by_id(id).await {
             return Some(user.accessible_articles.into_iter().collect());

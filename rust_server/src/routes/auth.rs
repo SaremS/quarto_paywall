@@ -1,14 +1,14 @@
 use actix_session::Session;
 use actix_web::{
     web::{Data, Json},
-    HttpResponse, Responder, Result, HttpRequest
+    HttpResponse, Responder, Result,
 };
 use askama::Template;
 
 use crate::database::Database;
 use crate::envvars::EnvVarLoader;
-use crate::mail::{send_confirmation_mail, send_deletion_mail};
-use crate::models::{AuthLevel, LoginUser, MailEnvVars, RegisterUser};
+use crate::user_communication::{AbstractEmailClient, UserCommunicator};
+use crate::models::{AuthLevel, LoginUser, RegisterUser};
 use crate::security::session_status_from_session;
 use crate::templates::{
     DeleteUserConfirmedTemplate, DeleteUserTemplate, LoginSuccessTemplate, LoginTemplate,
@@ -27,7 +27,9 @@ pub async fn get_user_dashboard(
 
     let content;
     if auth_level > AuthLevel::NoAuth {
-        let paywall_articles = db.get_paywall_articles_for_user_id(session_status.user_id.unwrap()).await;
+        let paywall_articles = db
+            .get_paywall_articles_for_user_id(session_status.user_id.unwrap())
+            .await;
 
         content = UserDashboardTemplate {
             username: session_status.username.unwrap(),
@@ -63,7 +65,9 @@ pub async fn get_user_dashboard_template(
     let content;
 
     if session_status.auth_level > AuthLevel::NoAuth {
-        let paywall_articles = db.get_paywall_articles_for_user_id(session_status.user_id.unwrap()).await;
+        let paywall_articles = db
+            .get_paywall_articles_for_user_id(session_status.user_id.unwrap())
+            .await;
 
         content = UserDashboardTemplate {
             username: session_status.username.unwrap(),
@@ -118,30 +122,16 @@ pub async fn put_register_user(
     session: Session,
     user: Json<RegisterUser>,
     db: Data<dyn Database>,
-    env_var_loader: Data<EnvVarLoader>,
+    user_communicator: Data<UserCommunicator>,
 ) -> Result<impl Responder> {
     let create_user_result = db.create_user(user.into_inner()).await;
 
     let result_content;
     match create_user_result {
         Ok(user_created) => {
-            let mail_environment = MailEnvVars {
-                mail_secret_key: &env_var_loader.get_mail_secret_key(),
-                deletion_secret_key: &env_var_loader.get_deletion_secret_key(),
-                smtp_mail_address: &env_var_loader.get_smtp_mail_address(),
-                domain_url: &env_var_loader.get_domain_url(),
-                smtp_host: &env_var_loader.get_smtp_host(),
-                smtp_sender_name: &env_var_loader.get_smtp_sender_name(),
-                smtp_username: &env_var_loader.get_smtp_username(),
-                smtp_password: &env_var_loader.get_smtp_password(),
-            };
-
-            send_confirmation_mail(
-                &user_created.user_id,
-                &user_created.email,
-                &mail_environment,
-            )
-            .await;
+            let _ = user_communicator
+                .send_registration_verification_email(&user_created.user_id, &user_created.email)
+                .await;
 
             result_content = RegisterSuccessTemplate {
                 username: user_created.username,
@@ -227,26 +217,16 @@ pub async fn get_delete_user_confirmed(
     session: Session,
     db: Data<dyn Database>,
     env_var_loader: Data<EnvVarLoader>,
+    user_communicator: Data<UserCommunicator>,
 ) -> Result<impl Responder> {
     let session_status =
         session_status_from_session(&session, &env_var_loader.get_jwt_secret_key()).await;
-
-    let mail_environment = MailEnvVars {
-        mail_secret_key: &env_var_loader.get_mail_secret_key(),
-        deletion_secret_key: &env_var_loader.get_deletion_secret_key(),
-        smtp_mail_address: &env_var_loader.get_smtp_mail_address(),
-        domain_url: &env_var_loader.get_domain_url(),
-        smtp_host: &env_var_loader.get_smtp_host(),
-        smtp_sender_name: &env_var_loader.get_smtp_sender_name(),
-        smtp_username: &env_var_loader.get_smtp_username(),
-        smtp_password: &env_var_loader.get_smtp_password(),
-    };
 
     let user_id = session_status.user_id.unwrap();
     let user = db.get_user_by_id(user_id).await;
     let email = user.unwrap().email;
 
-    send_deletion_mail(&user_id, &email, &mail_environment).await;
+    let _ = user_communicator.make_deletion_verification_email(&user_id, &email).await;
 
     let delete_user_template_confirmed = DeleteUserConfirmedTemplate {}.render().unwrap();
 
