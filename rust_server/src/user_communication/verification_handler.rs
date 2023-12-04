@@ -4,7 +4,7 @@ use log::error;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use crate::user_communication::EmailSender;
+use crate::user_communication::EmailMessage;
 
 pub struct VerificationHandler {
     mail_secret_key: String,
@@ -25,12 +25,11 @@ impl VerificationHandler {
         };
     }
 
-    pub async fn send_registration_verification_email(
+    pub async fn make_registration_verification_email(
         &self,
         user_id: &usize,
         recipient: &str,
-        sender: &dyn EmailSender,
-    ) {
+    ) -> EmailMessage {
         let token = self
             .make_verification_token(user_id, self.mail_secret_key.clone(), Duration::days(1))
             .await;
@@ -42,7 +41,12 @@ impl VerificationHandler {
             + "! As a last step, please follow this confirmation link: \n"
             + &confirm_url;
 
-        let _ = sender.send(recipient, subject, &body).await;
+        let message = EmailMessage {
+            recipient: recipient.to_string(), 
+            subject: subject.to_string(), 
+            body};
+
+        return message;
     }
 
     pub async fn handle_registration_verification(
@@ -56,12 +60,11 @@ impl VerificationHandler {
         return verification_result.map(|x| x.user_id);
     }
 
-    pub async fn send_deletion_verification_email(
+    pub async fn make_deletion_verification_email(
         &self,
         user_id: &usize,
         recipient: &str,
-        sender: &dyn EmailSender,
-    ) {
+    ) -> EmailMessage {
         let token = self
             .make_verification_token(
                 user_id,
@@ -78,7 +81,12 @@ impl VerificationHandler {
             + "! As a last step, please follow this confirmation link: \n"
             + &confirm_url;
 
-        sender.send(recipient, subject, &body).await;
+        let message = EmailMessage {
+            recipient: recipient.to_string(), 
+            subject: subject.to_string(), 
+            body};
+
+        return message;
     }
 
     pub async fn handle_deletion_verification(

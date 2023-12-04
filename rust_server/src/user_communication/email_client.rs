@@ -1,12 +1,12 @@
-use async_trait::async_trait;
 use lettre::message::header::ContentType;
 use lettre::{transport::smtp::authentication::Credentials, Message, SmtpTransport, Transport};
 
 use crate::envvars::EnvVarLoader;
 
-#[async_trait]
-pub trait EmailSender: Sync + Send {
-    async fn send(&self, recipient: &str, subject: &str, body: &str) -> Result<(), ()>;
+pub struct EmailMessage {
+    pub recipient: String,
+    pub subject: String,
+    pub body: String
 }
 
 pub struct EmailClient {
@@ -17,15 +17,14 @@ pub struct EmailClient {
     smtp_password: String,
 }
 
-#[async_trait]
-impl EmailSender for EmailClient {
-    async fn send(&self, recipient: &str, subject: &str, body: &str) -> Result<(), ()> {
+impl<'a> EmailClient {
+    pub async fn send(&self, message: &EmailMessage) -> Result<(), ()> {
         let email = Message::builder()
             .from(self.get_full_sender().await.parse().unwrap())
-            .to(recipient.parse().unwrap())
-            .subject(subject)
+            .to(message.recipient.parse().unwrap())
+            .subject(message.subject.clone())
             .header(ContentType::TEXT_PLAIN)
-            .body(String::from(body))
+            .body(String::from(message.body.clone()))
             .unwrap();
 
         let smtp_creds = self.get_lettre_smtp_credentials().await;
@@ -41,9 +40,6 @@ impl EmailSender for EmailClient {
             Err(e) => Err(()),
         }
     }
-}
-
-impl EmailClient {
     pub fn new(
         smtp_mail_address: String,
         smtp_host: String,
