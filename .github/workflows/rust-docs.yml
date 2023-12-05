@@ -24,10 +24,15 @@ jobs:
     - name: Generate Documentation
       run: cd rust_server && cargo doc --no-deps
 
-    - name: Deploy to GitHub Pages
-      uses: peaceiris/actions-gh-pages@v3
-      with:
-        deploy_key: ${{ secrets.GITHUB_TOKEN }}
-        publish_dir: ./rust_server/target/doc
-        publish_branch: docs  # Branch to push documentation to
-        keep_files: true  # Keeps files that are already in the branch
+    - name: Deploy Documentation
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        git config --global user.name "GitHub Actions"
+        git config --global user.email "actions@github.com"
+        git fetch origin
+        git checkout docs || git checkout -b docs
+        cp -r ./rust_server/target/doc/* .
+        git add .
+        git commit -m "Update documentation"
+        git push origin docs
