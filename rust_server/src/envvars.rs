@@ -21,6 +21,7 @@ impl EnvVarLoader {
     ///- `JWT_SECRET_KEY`: Secret key for JWT encryption
     ///- `MAIL_SECRET_KEY`: Secret key for email token encyrption
     ///- `DELETION_SECRET_KEY`: Secret key for user deletion token encryption
+    ///- `DOMAIN_URL`: The root domain of the server
     ///- `SMTP_MAIL_ADDRESS`: Email address from which to send automated emails
     ///- `SMTP_SENDER_NAME`: Name to display in automated emails
     ///- `SMTP_HOST`: Host address of your SMTP server
