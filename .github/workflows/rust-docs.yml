@@ -27,7 +27,7 @@ jobs:
     - name: Generate Documentation
       run: cargo doc --no-deps --manifest-path ./rust_server/Cargo.toml 
     - name: Fix paths
-      run: echo "<meta http-equiv=\"refresh\" content=\"0; url=build_wheel\">" > ./rust_server/target/doc/rust_server/index.html
+      run: echo "<meta http-equiv=\"refresh\" content=\"0; url=rust_server\">" > ./rust_server/target/doc/index.html
 
       
     - name: Deploy
