@@ -29,7 +29,7 @@ jobs:
         cd rust_server\
           cargo doc --no-deps\
           mv ./target/doc/static.files/ ./target/doc/rust_server/static.files/\
-          echo 'theme: minima' >> ./target/doc/_config.yml
+          echo 'theme: minima' > ./target/doc/_config.yml
         
 
     - name: Deploy
