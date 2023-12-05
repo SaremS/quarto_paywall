@@ -25,7 +25,7 @@ jobs:
         override: true
 
     - name: Generate Documentation
-      run: cd rust_server && cargo doc --no-deps && mv -r ./target/doc/static.files ./target/doc/rust_server/static.files
+      run: cd rust_server && cargo doc --no-deps && mv ./target/doc/static.files/ ./target/doc/rust_server/static.files/
 
     - name: Deploy
       uses: JamesIves/github-pages-deploy-action@4.1.8
