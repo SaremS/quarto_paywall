@@ -6,7 +6,7 @@ is only a in-memory database in the backend, thus any data will be destroyed aft
 
 Take a look at the [issue tracker](https://github.com/SaremS/quarto_paywall/issues) to see what is still missing - feel free to add more feature requests.
 
-To run this on your own - see the attached `Dockerfile`, `docker-compose.yml` and `.env.example` files. Also, an early 
+To run this on your own - see the attached `Dockerfile`, `docker-compose.yml` and `.env.example` files. 
 
 An early stage rustdoc for the internals is available [here](https://sarems.github.io/quarto_paywall/rust_server/).
 
