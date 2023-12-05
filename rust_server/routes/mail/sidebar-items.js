@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["confirm_user","delete_user"],"struct":["VerifyUserQuery"]};

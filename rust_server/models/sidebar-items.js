@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"mod":["article_models","purchase_models","session_models","user_models"]};

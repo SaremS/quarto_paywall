@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":["DeleteUserConfirmedTemplate","DeleteUserTemplate","LoginSuccessTemplate","LoginTemplate","LogoutSuccessTemplate","RegisterSuccessTemplate","RegisterTemplate","UberTemplate","UserDashboardTemplate"]};

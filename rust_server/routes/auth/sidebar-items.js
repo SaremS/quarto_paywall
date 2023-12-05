@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["get_delete_user","get_delete_user_confirmed","get_login","get_logout_user","get_register","get_user_dashboard","get_user_dashboard_template","put_login_user","put_register_user"]};

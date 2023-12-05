@@ -1,0 +1,86 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="API documentation for the Rust `AdvancedEditable` trait in crate `rust_server`."><title>AdvancedEditable in rust_server::utils - Rust</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Bold-a2c9cd1067f8b328.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-fa3bb1812debf86c.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="rust_server" data-themes="" data-resource-suffix="" data-rustdoc-version="1.74.0 (79e9716c9 2023-11-13)" data-channel="1.74.0" data-search-js="search-8be46b629f5f14a8.js" data-settings-js="settings-74424d7eec62a23e.js" ><script src="../../static.files/storage-fec3eaa3851e447d.js"></script><script defer src="sidebar-items.js"></script><script defer src="../../static.files/main-c5bd66d33317d69f.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-5d8b3c7633ad77ba.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc trait"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle">&#9776;</button><a class="logo-container" href="../../rust_server/index.html"><img class="rust-logo" src="../../static.files/rust-logo-151179464ae7ed46.svg" alt="logo"></a></nav><nav class="sidebar"><a class="logo-container" href="../../rust_server/index.html"><img class="rust-logo" src="../../static.files/rust-logo-151179464ae7ed46.svg" alt="logo"></a><h2 class="location"><a href="#">AdvancedEditable</a></h2><div class="sidebar-elems"><section><h3><a href="#required-methods">Required Methods</a></h3><ul class="block"><li><a href="#tymethod.insert_at_index_or_push">insert_at_index_or_push</a></li><li><a href="#tymethod.insert_before_selector_or_push">insert_before_selector_or_push</a></li></ul><h3><a href="#foreign-impls">Implementations on Foreign Types</a></h3><ul class="block"><li><a href="#impl-AdvancedEditable-for-Element">Element</a></li><li><a href="#impl-AdvancedEditable-for-Vec%3CNode%3E">Vec&lt;Node&gt;</a></li></ul><h3><a href="#implementors">Implementors</a></h3></section><h2><a href="index.html">In rust_server::utils</a></h2></div></nav><main><div class="width-limiter"><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="main-heading"><h1>Trait <a href="../index.html">rust_server</a>::<wbr><a href="index.html">utils</a>::<wbr><a class="trait" href="#">AdvancedEditable</a><button id="copy-path" title="Copy item path to clipboard"><img src="../../static.files/clipboard-7571035ce49a181d.svg" width="19" height="18" alt="Copy item path"></button></h1><span class="out-of-band"><a class="src" href="../../src/rust_server/utils.rs.html#3-62">source</a> · <button id="toggle-all-docs" title="collapse all docs">[<span>&#x2212;</span>]</button></span></div><pre class="rust item-decl"><code>pub trait AdvancedEditable {
+    // Required methods
+    fn <a href="#tymethod.insert_at_index_or_push" class="fn">insert_at_index_or_push</a>(
+        &amp;mut self,
+        selector: &amp;Selector,
+        target: Node,
+        index: <a class="primitive" href="https://doc.rust-lang.org/1.74.0/std/primitive.usize.html">usize</a>
+    ) -&gt; <a class="primitive" href="https://doc.rust-lang.org/1.74.0/std/primitive.reference.html">&amp;mut Self</a>;
+<span class="item-spacer"></span>    fn <a href="#tymethod.insert_before_selector_or_push" class="fn">insert_before_selector_or_push</a>(
+        &amp;mut self,
+        selector: &amp;Selector,
+        target: Node,
+        before_selector: &amp;Selector
+    ) -&gt; <a class="primitive" href="https://doc.rust-lang.org/1.74.0/std/primitive.reference.html">&amp;mut Self</a>;
+}</code></pre><h2 id="required-methods" class="small-section-header">Required Methods<a href="#required-methods" class="anchor">§</a></h2><div class="methods"><details class="toggle method-toggle" open><summary><section id="tymethod.insert_at_index_or_push" class="method"><a class="src rightside" href="../../src/rust_server/utils.rs.html#26-31">source</a><h4 class="code-header">fn <a href="#tymethod.insert_at_index_or_push" class="fn">insert_at_index_or_push</a>(
+    &amp;mut self,
+    selector: &amp;Selector,
+    target: Node,
+    index: <a class="primitive" href="https://doc.rust-lang.org/1.74.0/std/primitive.usize.html">usize</a>
+) -&gt; <a class="primitive" href="https://doc.rust-lang.org/1.74.0/std/primitive.reference.html">&amp;mut Self</a></h4></section></summary><div class="docblock"><p>Insert <code>node</code> at <code>index</code> in the children all elements that match the <code>selector</code>.
+If <code>index</code> lies outside the range of the children, <code>target</code> is inserted as the last
+element of children.</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>html_editor::{parse, Node};
+<span class="kw">use </span>html_editor::operation::<span class="kw-2">*</span>;
+<span class="kw">use </span>rust_server::utils::AdvancedEditable;
+
+<span class="kw">let </span>html = <span class="string">r#&quot;&lt;div&gt;&lt;ul&gt;&lt;li&gt;1&lt;/li&gt;&lt;li&gt;3&lt;/li&gt;&lt;/ul&gt;&lt;/div&gt;&quot;#</span>;
+
+<span class="kw">let </span>selector = Selector::from(<span class="string">&quot;ul&quot;</span>);
+<span class="kw">let </span>html = parse(html)
+    .unwrap()
+    .insert_at_index_or_push(<span class="kw-2">&amp;</span>selector, Node::new_element(
+        <span class="string">&quot;li&quot;</span>,
+        <span class="macro">vec!</span>[],
+        <span class="macro">vec!</span>[Node::Text(<span class="string">&quot;2&quot;</span>.to_string())]
+    ), <span class="number">1</span>)
+    .html();
+<span class="macro">assert_eq!</span>(html, <span class="string">r#&quot;&lt;div&gt;&lt;ul&gt;&lt;li&gt;1&lt;/li&gt;&lt;li&gt;2&lt;/li&gt;&lt;li&gt;3&lt;/li&gt;&lt;/ul&gt;&lt;/div&gt;&quot;#</span>)</code></pre></div>
+</div></details><details class="toggle method-toggle" open><summary><section id="tymethod.insert_before_selector_or_push" class="method"><a class="src rightside" href="../../src/rust_server/utils.rs.html#56-61">source</a><h4 class="code-header">fn <a href="#tymethod.insert_before_selector_or_push" class="fn">insert_before_selector_or_push</a>(
+    &amp;mut self,
+    selector: &amp;Selector,
+    target: Node,
+    before_selector: &amp;Selector
+) -&gt; <a class="primitive" href="https://doc.rust-lang.org/1.74.0/std/primitive.reference.html">&amp;mut Self</a></h4></section></summary><div class="docblock"><p>Insert <code>node</code> before (at the same hierarchical level) all (recursive) all child elements
+of <code>selector</code> that match the <code>before_selector</code>.
+If <code>before_selector</code> is not found, appends to all <code>selector</code> nodes.</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>html_editor::{parse, Node};
+<span class="kw">use </span>html_editor::operation::<span class="kw-2">*</span>;
+<span class="kw">use </span>rust_server::utils::AdvancedEditable;
+
+<span class="kw">let </span>html = <span class="string">r#&quot;&lt;div&gt;&lt;ul&gt;&lt;li&gt;1&lt;/li&gt;&lt;li class=&quot;third&quot;&gt;3&lt;/li&gt;&lt;/ul&gt;&lt;/div&gt;&quot;#</span>;
+
+<span class="kw">let </span>selector = Selector::from(<span class="string">&quot;ul&quot;</span>);
+<span class="kw">let </span>before_selector = Selector::from(<span class="string">&quot;li.third&quot;</span>);
+<span class="kw">let </span>html = parse(html)
+    .unwrap()
+    .insert_before_selector_or_push(<span class="kw-2">&amp;</span>selector, Node::new_element(
+        <span class="string">&quot;li&quot;</span>,
+        <span class="macro">vec!</span>[],
+        <span class="macro">vec!</span>[Node::Text(<span class="string">&quot;2&quot;</span>.to_string())]
+    ), <span class="kw-2">&amp;</span>before_selector)
+    .html();
+<span class="macro">assert_eq!</span>(html, <span class="string">r#&quot;&lt;div&gt;&lt;ul&gt;&lt;li&gt;1&lt;/li&gt;&lt;li&gt;2&lt;/li&gt;&lt;li class=&quot;third&quot;&gt;3&lt;/li&gt;&lt;/ul&gt;&lt;/div&gt;&quot;#</span>)</code></pre></div>
+</div></details></div><h2 id="foreign-impls" class="small-section-header">Implementations on Foreign Types<a href="#foreign-impls" class="anchor">§</a></h2><details class="toggle implementors-toggle"><summary><section id="impl-AdvancedEditable-for-Vec%3CNode%3E" class="impl"><a class="src rightside" href="../../src/rust_server/utils.rs.html#151-209">source</a><a href="#impl-AdvancedEditable-for-Vec%3CNode%3E" class="anchor">§</a><h3 class="code-header">impl <a class="trait" href="trait.AdvancedEditable.html" title="trait rust_server::utils::AdvancedEditable">AdvancedEditable</a> for <a class="struct" href="https://doc.rust-lang.org/1.74.0/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;Node&gt;</h3></section></summary><div class="impl-items"><section id="method.insert_at_index_or_push" class="method trait-impl"><a class="src rightside" href="../../src/rust_server/utils.rs.html#152-176">source</a><a href="#method.insert_at_index_or_push" class="anchor">§</a><h4 class="code-header">fn <a href="#tymethod.insert_at_index_or_push" class="fn">insert_at_index_or_push</a>(
+    &amp;mut self,
+    selector: &amp;Selector,
+    target: Node,
+    index: <a class="primitive" href="https://doc.rust-lang.org/1.74.0/std/primitive.usize.html">usize</a>
+) -&gt; <a class="primitive" href="https://doc.rust-lang.org/1.74.0/std/primitive.reference.html">&amp;mut Self</a></h4></section><section id="method.insert_before_selector_or_push" class="method trait-impl"><a class="src rightside" href="../../src/rust_server/utils.rs.html#178-208">source</a><a href="#method.insert_before_selector_or_push" class="anchor">§</a><h4 class="code-header">fn <a href="#tymethod.insert_before_selector_or_push" class="fn">insert_before_selector_or_push</a>(
+    &amp;mut self,
+    selector: &amp;Selector,
+    target: Node,
+    before_selector: &amp;Selector
+) -&gt; <a class="primitive" href="https://doc.rust-lang.org/1.74.0/std/primitive.reference.html">&amp;mut Self</a></h4></section></div></details><details class="toggle implementors-toggle"><summary><section id="impl-AdvancedEditable-for-Element" class="impl"><a class="src rightside" href="../../src/rust_server/utils.rs.html#89-129">source</a><a href="#impl-AdvancedEditable-for-Element" class="anchor">§</a><h3 class="code-header">impl <a class="trait" href="trait.AdvancedEditable.html" title="trait rust_server::utils::AdvancedEditable">AdvancedEditable</a> for Element</h3></section></summary><div class="impl-items"><section id="method.insert_at_index_or_push-1" class="method trait-impl"><a class="src rightside" href="../../src/rust_server/utils.rs.html#90-106">source</a><a href="#method.insert_at_index_or_push-1" class="anchor">§</a><h4 class="code-header">fn <a href="#tymethod.insert_at_index_or_push" class="fn">insert_at_index_or_push</a>(
+    &amp;mut self,
+    selector: &amp;Selector,
+    target: Node,
+    index: <a class="primitive" href="https://doc.rust-lang.org/1.74.0/std/primitive.usize.html">usize</a>
+) -&gt; <a class="primitive" href="https://doc.rust-lang.org/1.74.0/std/primitive.reference.html">&amp;mut Self</a></h4></section><section id="method.insert_before_selector_or_push-1" class="method trait-impl"><a class="src rightside" href="../../src/rust_server/utils.rs.html#108-128">source</a><a href="#method.insert_before_selector_or_push-1" class="anchor">§</a><h4 class="code-header">fn <a href="#tymethod.insert_before_selector_or_push" class="fn">insert_before_selector_or_push</a>(
+    &amp;mut self,
+    selector: &amp;Selector,
+    target: Node,
+    before_selector: &amp;Selector
+) -&gt; <a class="primitive" href="https://doc.rust-lang.org/1.74.0/std/primitive.reference.html">&amp;mut Self</a></h4></section></div></details><h2 id="implementors" class="small-section-header">Implementors<a href="#implementors" class="anchor">§</a></h2><div id="implementors-list"></div><script src="../../implementors/rust_server/utils/trait.AdvancedEditable.js" data-ignore-extern-crates="alloc,html_editor" async></script></section></div></main></body></html>

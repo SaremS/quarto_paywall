@@ -1,0 +1,4 @@
+var srcIndex = JSON.parse('{\
+"rust_server":["",[["database",[],["database_base.rs","in_memory_db.rs","mod.rs"]],["errors",[],["authentication_errors.rs","data_import_errors.rs","mod.rs","signup_errors.rs"]],["models",[],["article_models.rs","mod.rs","purchase_models.rs","session_models.rs","user_models.rs"]],["paywall",[],["mod.rs","paywall_server.rs","paywall_server_factory.rs","quarto_paywall.rs","recursive_filereader.rs","session_conditional_manipulation.rs","session_conditional_object.rs"]],["purchase",[],["mod.rs","purchase_handler.rs","stripe_client.rs"]],["routes",[],["auth.rs","mail.rs","mod.rs","purchase.rs","static_files.rs"]],["security",[],["mod.rs","password.rs","session.rs"]],["user_communication",[],["email_client.rs","mod.rs","user_communicator.rs"]]],["envvars.rs","lib.rs","price.rs","templates.rs","utils.rs"]]\
+}');
+createSrcSidebar();
