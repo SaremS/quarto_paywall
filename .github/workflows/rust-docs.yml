@@ -26,10 +26,9 @@ jobs:
 
     - name: Generate Documentation
       run: cargo doc --no-deps --manifest-path ./rust_server/Cargo.toml 
-    - name: Move static files
-      run: mv ./rust_server/target/doc/static.files/ ./rust_server/target/doc/rust_server/static.files/
-    - name: Create Jekyll config
-      run: touch ./rust_server/target/doc/rust_server/.nojekyll
+    - name: Fix paths
+      run: echo "<meta http-equiv=\"refresh\" content=\"0; url=build_wheel\">" > ./rust_server/target/doc/rust_server/index.html
+
       
     - name: Deploy
       uses: JamesIves/github-pages-deploy-action@4.1.8
