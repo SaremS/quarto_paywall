@@ -26,11 +26,9 @@ jobs:
 
     - name: Generate Documentation
       run: |
-        cd rust_server\
-          cargo doc --no-deps\
-          mv ./target/doc/static.files/ ./target/doc/rust_server/static.files/\
-          echo 'theme: minima' > ./target/doc/_config.yml
-        
+       cargo doc --no-deps ./rust_server\
+         mv ./rust_server/target/doc/static.files/ ./rust_server/target/doc/rust_server/static.files/\
+         echo 'theme: minima' > ./rust_server/target/doc/_config.yml
 
     - name: Deploy
       uses: JamesIves/github-pages-deploy-action@4.1.8
