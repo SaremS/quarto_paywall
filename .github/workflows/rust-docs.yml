@@ -29,7 +29,8 @@ jobs:
     - name: Move static files
       run: mv ./rust_server/target/doc/static.files/ ./rust_server/target/doc/rust_server/static.files/
     - name: Create Jekyll config
-      run: echo "theme':' minima" >> ./rust_server/target/doc/rust_server/_config.yaml
+      run: | 
+        echo "theme: minima" >> ./rust_server/target/doc/rust_server/_config.yaml
       
     - name: Deploy
       uses: JamesIves/github-pages-deploy-action@4.1.8
