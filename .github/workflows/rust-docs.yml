@@ -30,7 +30,7 @@ jobs:
       run: mv ./rust_server/target/doc/static.files/ ./rust_server/target/doc/rust_server/static.files/
     - name: Create Jekyll config
       run: | 
-        echo "include: static.files" >> ./rust_server/target/doc/rust_server/_config.yaml
+        echo "include: static.files/" >> ./rust_server/target/doc/rust_server/_config.yaml
       
     - name: Deploy
       uses: JamesIves/github-pages-deploy-action@4.1.8
