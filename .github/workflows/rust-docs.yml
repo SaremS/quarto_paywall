@@ -28,7 +28,8 @@ jobs:
       run: |
        cargo doc --no-deps ./rust_server\
          mv ./rust_server/target/doc/static.files/ ./rust_server/target/doc/rust_server/static.files/\
-         echo 'theme: minima' > ./rust_server/target/doc/_config.yml
+         touch ./rust_server/target/doc/_config.yml
+         echo 'theme: minima' >> ./rust_server/target/doc/_config.yml
 
     - name: Deploy
       uses: JamesIves/github-pages-deploy-action@4.1.8
