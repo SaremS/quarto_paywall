@@ -1,0 +1,33 @@
+name: Generate Rust Documentation
+
+on:
+  push:
+    branches:
+      - master  # or your default branch
+
+jobs:
+  build-docs:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        fetch-depth: 0  # Ensures history is available for branch operations
+
+    - name: Set up Rust
+      uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: stable
+        override: true
+
+    - name: Generate Documentation
+      run: cargo doc --no-deps
+
+    - name: Deploy to GitHub Pages
+      uses: peaceiris/actions-gh-pages@v3
+      with:
+        deploy_key: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./target/doc
+        publish_branch: docs  # Branch to push documentation to
+        keep_files: true  # Keeps files that are already in the branch
