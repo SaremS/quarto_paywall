@@ -1,4 +1,4 @@
-use std::collections::HashSet; 
+use std::collections::HashSet;
 
 use lazy_static::lazy_static;
 use regex::Regex;
@@ -20,6 +20,11 @@ pub struct RegisterUser {
     #[validate(must_match(other = "password_repeat", message = "Passwords must match."))]
     pub password: String,
     pub password_repeat: String,
+}
+
+#[derive(Deserialize, Serialize)]
+pub struct RecoverPassword {
+    pub email: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]

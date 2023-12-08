@@ -5,7 +5,8 @@ use actix_web::{middleware::Logger, web::{Data, get, post}, App, HttpServer};
 use rust_server::database::{Database, InMemoryDb};
 use rust_server::routes::{
     auth::{get_login, get_logout_user, get_register, get_user_dashboard, get_user_dashboard_template,
-    put_login_user, put_register_user, get_delete_user, get_delete_user_confirmed, get_password_recover},
+    put_login_user, put_register_user, get_delete_user, get_delete_user_confirmed, get_password_recover,
+    put_password_recover},
     purchase::{stripe_checkout, stripe_webhook_add_article},
     static_files::{html_files, index, static_files},
     mail::{confirm_user, delete_user}
@@ -93,7 +94,8 @@ async fn main() -> std::io::Result<()> {
             .route("/delete-user", get().to(delete_user))
             .route("/auth/delete-user", get().to(get_delete_user))
             .route("/auth/delete-user-confirmed", get().to(get_delete_user_confirmed))
-            .route("/auth/password_recover", get().to(get_password_recover))
+            .route("/auth/password-recover", get().to(get_password_recover))
+            .route("/auth/send-password-recover-link", post().to(put_password_recover))
     }) 
 
             .bind(("0.0.0.0", 5001))?

@@ -4,25 +4,17 @@ use actix_web::{
     HttpResponse, Responder, Result,
 };
 use askama::Template;
-use serde::{Deserialize, Serialize};
 
 use crate::database::Database;
 use crate::envvars::EnvVarLoader;
-use crate::user_communication::UserCommunicator;
-use crate::models::{AuthLevel, LoginUser, RegisterUser};
+use crate::models::{AuthLevel, LoginUser, RecoverPassword, RegisterUser};
 use crate::security::session_status_from_session;
 use crate::templates::{
     DeleteUserConfirmedTemplate, DeleteUserTemplate, LoginSuccessTemplate, LoginTemplate,
-    LogoutSuccessTemplate, RegisterSuccessTemplate, RegisterTemplate, UberTemplate,
-    UserDashboardTemplate, PasswordRecoverTemplate
+    LogoutSuccessTemplate, PasswordRecoverTemplate, RegisterSuccessTemplate, RegisterTemplate,
+    UberTemplate, UserDashboardTemplate,
 };
-
-
-#[derive(Deserialize, Serialize)]
-pub struct RecoverPassword {
-    pub email: String
-}
-
+use crate::user_communication::UserCommunicator;
 
 pub async fn get_user_dashboard(
     db: Data<dyn Database>,
@@ -179,29 +171,36 @@ pub async fn put_register_user(
     return Ok(response);
 }
 
-
 pub async fn put_password_recover(
-    session: Session,
     recover_password: Json<RecoverPassword>,
     db: Data<dyn Database>,
     user_communicator: Data<UserCommunicator>,
 ) -> Result<impl Responder> {
     let user_exists = db.check_email_exists(&recover_password.email).await;
+    let result_content;
 
-    let result_content = if user_exists {
-PasswordRecoverTemplate {
-                error_message: "Sent an email".to_string(),
-            }
-            .render()
-            .unwrap();
+    if user_exists {
+        let user_id = db
+            .get_user_by_email(&recover_password.email)
+            .await
+            .unwrap()
+            .id;
+        let _ = user_communicator
+            .send_password_recovery_email(&user_id, &recover_password.email)
+            .await;
+
+        result_content = PasswordRecoverTemplate {
+            error_message: "Sent an email".to_string(),
+        }
+        .render()
+        .unwrap();
     } else {
- PasswordRecoverTemplate {
-                error_message: "Email not found".to_string(),
-            }
-            .render()
-            .unwrap();       
+        result_content = PasswordRecoverTemplate {
+            error_message: "Email not found".to_string(),
+        }
+        .render()
+        .unwrap();
     };
-    
 
     let response = HttpResponse::Ok()
         .content_type("text/html; charset=utf-8")
@@ -209,7 +208,6 @@ PasswordRecoverTemplate {
 
     return Ok(response);
 }
-
 
 pub async fn put_login_user(
     session: Session,
@@ -280,7 +278,9 @@ pub async fn get_delete_user_confirmed(
     let user = db.get_user_by_id(user_id).await;
     let email = user.unwrap().email;
 
-    let _ = user_communicator.make_deletion_verification_email(&user_id, &email).await;
+    let _ = user_communicator
+        .make_deletion_verification_email(&user_id, &email)
+        .await;
 
     let delete_user_template_confirmed = DeleteUserConfirmedTemplate {}.render().unwrap();
 
