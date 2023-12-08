@@ -12,15 +12,18 @@ use crate::errors::SignupError;
 use crate::models::{LoginUser, PaywallArticle, RegisterUser, User, UserCreated, UserLoggedIn};
 use crate::security::HashingAlgorithm;
 
- ///Simple pseudo-DB for testing
+///Simple pseudo-DB for testing
 ///
 ///=> Do not use in production
-pub struct InMemoryDb<T> where T: HashingAlgorithm {
-    db: Arc<Mutex<HashMap<String, User>>>, //email -> User
+pub struct InMemoryDb<T>
+where
+    T: HashingAlgorithm,
+{
+    db: Arc<Mutex<HashMap<String, User>>>,        //email -> User
     id_index: Arc<Mutex<HashMap<usize, String>>>, //id -> email
     username_index: Arc<Mutex<HashMap<String, String>>>, //username->email
     jwt_secret: String,
-    _marker: std::marker::PhantomData<T>
+    _marker: std::marker::PhantomData<T>,
 }
 
 impl<T: HashingAlgorithm> InMemoryDb<T> {
@@ -30,14 +33,13 @@ impl<T: HashingAlgorithm> InMemoryDb<T> {
             id_index: Arc::new(Mutex::new(HashMap::new())),
             username_index: Arc::new(Mutex::new(HashMap::new())),
             jwt_secret,
-            _marker: std::marker::PhantomData
+            _marker: std::marker::PhantomData,
         };
     }
 }
 
 #[async_trait]
 impl<T: HashingAlgorithm> Database for InMemoryDb<T> {
-
     ///See [`crate::database::Database::create_user`]
     async fn create_user(&self, user: RegisterUser) -> Result<UserCreated, SignupError> {
         match user.validate() {
@@ -89,6 +91,13 @@ impl<T: HashingAlgorithm> Database for InMemoryDb<T> {
         };
 
         return Ok(user_created);
+    }
+
+    ///See [`crate::database::Database::check_email_exists`]
+    async fn check_email_exists(&self, email: &str) -> bool {
+        let local_db = self.db.lock().await;
+
+        return local_db.contains_key(email);
     }
 
     ///See [`crate::database::Database::create_admin`]
@@ -149,8 +158,7 @@ impl<T: HashingAlgorithm> Database for InMemoryDb<T> {
             }
         };
 
-        if !T::verify_hash(&login_user.password, &user.password)
-        {
+        if !T::verify_hash(&login_user.password, &user.password) {
             return Err(AuthenticationError::InvalidCredentialsError);
         }
 
@@ -274,6 +282,17 @@ impl<T: HashingAlgorithm> Database for InMemoryDb<T> {
             return Some(user.accessible_articles.into_iter().collect());
         } else {
             return None;
+        }
+    }
+
+    ///See [`crate::database::Database::get_user_by_email`]
+    async fn get_user_by_email(&self, email: &str) -> Option<User> {
+        let local_db = self.db.lock().await;
+        let result = local_db.get(email);
+
+        match result {
+            Some(user) => return Some(user.clone()),
+            None => return None,
         }
     }
 }

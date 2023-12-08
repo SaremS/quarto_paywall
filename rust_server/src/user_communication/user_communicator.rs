@@ -60,6 +60,36 @@ impl UserCommunicator {
         return verification_result.map(|x| x.user_id);
     }
 
+    pub async fn send_password_recovery_email(
+        &self,
+        user_id: &usize,
+        recipient: &str,
+    ) -> Result<(), ()> {
+        let token = self
+            .make_verification_token(user_id, self.mail_secret_key.clone(), Duration::minutes(10))
+            .await;
+        let confirm_url = "".to_owned() + &self.domain_url + "/recover-password?token=" + &token;
+
+        let subject = "Password recovery";
+        let body: String = "You can recover your password via the following link: \n".to_string()
+            + &confirm_url;
+
+        let email_result = self.email_client.send(recipient, subject, &body).await;
+
+        return email_result;
+    }
+
+    pub async fn handle_recovery_verification(
+        &self,
+        token: &str,
+    ) -> Result<usize, VerificationError> {
+        let key = self.mail_secret_key.clone();
+
+        let verification_result = self.decode_verification_token(token, &key).await;
+
+        return verification_result.map(|x| x.user_id);
+    }
+
     pub async fn make_deletion_verification_email(
         &self,
         user_id: &usize,
@@ -69,7 +99,7 @@ impl UserCommunicator {
             .make_verification_token(
                 user_id,
                 self.deletion_secret_key.clone(),
-                Duration::minutes(15),
+                Duration::minutes(10),
             )
             .await;
 

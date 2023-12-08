@@ -29,6 +29,55 @@ pub trait Database: Send + Sync {
     ///```
     async fn create_user(&self, user: RegisterUser) -> Result<UserCreated, SignupError>;
 
+    ///Enter user email and receive user object
+    ///```
+    ///use tokio::runtime::Runtime;
+    ///use rust_server::database::{Database, InMemoryDb};
+    ///use rust_server::models::RegisterUser;
+    ///use rust_server::security::NonHashing;
+    ///
+    ///let db: InMemoryDb<NonHashing> = InMemoryDb::new("123".to_string());
+    ///let new_user = RegisterUser {
+    ///     email: "test@test.com".to_string(),
+    ///     username: "test".to_string(),
+    ///     password: "insecure password".to_string(),
+    ///     password_repeat: "insecure password".to_string()
+    ///     };
+    ///
+    ///let rt = Runtime::new().unwrap();
+    ///let registered = rt.block_on(db.create_user(new_user)).unwrap();
+    ///let user = rt.block_on(db.get_user_by_email("test@test.com")).await.unwrap();
+    ///assert_eq!(user.email, new_user.email);
+    ///assert_eq!(user.username, new_user.username);
+    ///```
+    async fn get_user_by_email(&self, email: &str) -> Option<User>;
+
+    ///Verify that a certain user email exists
+    ///```
+    ///use tokio::runtime::Runtime;
+    ///use rust_server::database::{Database, InMemoryDb};
+    ///use rust_server::models::RegisterUser;
+    ///use rust_server::security::NonHashing;
+    ///
+    ///let db: InMemoryDb<NonHashing> = InMemoryDb::new("123".to_string());
+    ///let new_user = RegisterUser {
+    ///     email: "test@test.com".to_string(),
+    ///     username: "test".to_string(),
+    ///     password: "insecure password".to_string(),
+    ///     password_repeat: "insecure password".to_string()
+    ///     };
+    ///
+    ///let rt = Runtime::new().unwrap();
+    ///let registered = rt.block_on(db.create_user(new_user)).unwrap();
+    ///
+    ///let user_exists = rt.block_on(db.check_email_exists("test@test.com")).unwrap();
+    ///assert!(user_exists);
+    ///
+    ///let user_does_not_exist = rt.block_on(db.check_email_exists("not@there.com")).unwrap();
+    ///assert!(!user_does_not_exist);
+    ///```
+    async fn check_email_exists(&self, email: &str) -> bool;
+
     ///Create user with admin privileges
     async fn create_admin(&self, user: RegisterUser) -> Result<UserCreated, SignupError>;
 

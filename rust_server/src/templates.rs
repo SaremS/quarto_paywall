@@ -50,3 +50,9 @@ pub struct DeleteUserTemplate {}
 #[derive(Template)]
 #[template(path = "delete_user_confirmed.html")]
 pub struct DeleteUserConfirmedTemplate {}
+
+#[derive(Template)]
+#[template(path = "password_recover.html")]
+pub struct PasswordRecoverTemplate {
+    pub error_message: String
+}

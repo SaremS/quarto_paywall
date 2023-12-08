@@ -4,17 +4,25 @@ use actix_web::{
     HttpResponse, Responder, Result,
 };
 use askama::Template;
+use serde::{Deserialize, Serialize};
 
 use crate::database::Database;
 use crate::envvars::EnvVarLoader;
-use crate::user_communication::{AbstractEmailClient, UserCommunicator};
+use crate::user_communication::UserCommunicator;
 use crate::models::{AuthLevel, LoginUser, RegisterUser};
 use crate::security::session_status_from_session;
 use crate::templates::{
     DeleteUserConfirmedTemplate, DeleteUserTemplate, LoginSuccessTemplate, LoginTemplate,
     LogoutSuccessTemplate, RegisterSuccessTemplate, RegisterTemplate, UberTemplate,
-    UserDashboardTemplate,
+    UserDashboardTemplate, PasswordRecoverTemplate
 };
+
+
+#[derive(Deserialize, Serialize)]
+pub struct RecoverPassword {
+    pub email: String
+}
+
 
 pub async fn get_user_dashboard(
     db: Data<dyn Database>,
@@ -118,6 +126,20 @@ pub async fn get_login() -> Result<impl Responder> {
     return Ok(response);
 }
 
+pub async fn get_password_recover() -> Result<impl Responder> {
+    let target_template = PasswordRecoverTemplate {
+        error_message: "".to_string(),
+    }
+    .render()
+    .unwrap();
+
+    let response = HttpResponse::Ok()
+        .content_type("text/html; charset=utf-8")
+        .body(target_template);
+
+    return Ok(response);
+}
+
 pub async fn put_register_user(
     session: Session,
     user: Json<RegisterUser>,
@@ -156,6 +178,38 @@ pub async fn put_register_user(
 
     return Ok(response);
 }
+
+
+pub async fn put_password_recover(
+    session: Session,
+    recover_password: Json<RecoverPassword>,
+    db: Data<dyn Database>,
+    user_communicator: Data<UserCommunicator>,
+) -> Result<impl Responder> {
+    let user_exists = db.check_email_exists(&recover_password.email).await;
+
+    let result_content = if user_exists {
+PasswordRecoverTemplate {
+                error_message: "Sent an email".to_string(),
+            }
+            .render()
+            .unwrap();
+    } else {
+ PasswordRecoverTemplate {
+                error_message: "Email not found".to_string(),
+            }
+            .render()
+            .unwrap();       
+    };
+    
+
+    let response = HttpResponse::Ok()
+        .content_type("text/html; charset=utf-8")
+        .body(result_content);
+
+    return Ok(response);
+}
+
 
 pub async fn put_login_user(
     session: Session,
