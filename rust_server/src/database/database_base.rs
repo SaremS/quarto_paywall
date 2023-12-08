@@ -45,8 +45,8 @@ pub trait Database: Send + Sync {
     ///     };
     ///
     ///let rt = Runtime::new().unwrap();
-    ///let registered = rt.block_on(db.create_user(new_user)).unwrap();
-    ///let user = rt.block_on(db.get_user_by_email("test@test.com")).await.unwrap();
+    ///let registered = rt.block_on(db.create_user(new_user.clone())).unwrap();
+    ///let user = rt.block_on(db.get_user_by_email("test@test.com")).unwrap();
     ///assert_eq!(user.email, new_user.email);
     ///assert_eq!(user.username, new_user.username);
     ///```
@@ -70,10 +70,10 @@ pub trait Database: Send + Sync {
     ///let rt = Runtime::new().unwrap();
     ///let registered = rt.block_on(db.create_user(new_user)).unwrap();
     ///
-    ///let user_exists = rt.block_on(db.check_email_exists("test@test.com")).unwrap();
+    ///let user_exists = rt.block_on(db.check_email_exists("test@test.com"));
     ///assert!(user_exists);
     ///
-    ///let user_does_not_exist = rt.block_on(db.check_email_exists("not@there.com")).unwrap();
+    ///let user_does_not_exist = rt.block_on(db.check_email_exists("not@there.com"));
     ///assert!(!user_does_not_exist);
     ///```
     async fn check_email_exists(&self, email: &str) -> bool;
