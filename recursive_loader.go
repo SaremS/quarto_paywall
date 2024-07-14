@@ -9,14 +9,14 @@ import (
 )
 
 type RecursiveLoader interface {
-	WalkTarget(target string, fileType string, contentFunc func(content string) string) (map[string]*string, error)
+	WalkTarget(target string, fileType string, contentFunc func(content string) PaywallTemplate) (map[string]*PaywallTemplate, error)
 }
 
 type RecursiveFilePathLoader struct{}
 type SingleTestStringLoader struct{}
 
-func (r RecursiveFilePathLoader) WalkTarget(target string, fileType string, contentFunc func(content string) string) (map[string]*string, error) {
-	target_map := make(map[string]*string)
+func (r RecursiveFilePathLoader) WalkTarget(target string, fileType string, contentFunc func(content string) PaywallTemplate) (map[string]*PaywallTemplate, error) {
+	target_map := make(map[string]*PaywallTemplate)
 	err := filepath.Walk(target, func(path string, info os.FileInfo, err error) error {
 		if strings.HasSuffix(path, fileType) {
 			log.Printf("loaded path: %s", path)
@@ -43,8 +43,8 @@ func (r RecursiveFilePathLoader) WalkTarget(target string, fileType string, cont
 	return target_map, err
 }
 
-func (r SingleTestStringLoader) WalkTarget(target string, fileType string, contentFunc func(content string) string) (map[string]*string, error) {
-	target_map := make(map[string]*string)
+func (r SingleTestStringLoader) WalkTarget(target string, fileType string, contentFunc func(content string) PaywallTemplate) (map[string]*PaywallTemplate, error) {
+	target_map := make(map[string]*PaywallTemplate)
 	
 	result := contentFunc(target)
 	target_map[target] = &result 

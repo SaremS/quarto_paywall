@@ -64,9 +64,11 @@ func main() {
 			data := struct {
 				Name     string
 				LoggedIn bool
+				PaywallTemplate *PaywallTemplate
 			}{
 				Name:     userInfo.Name,
 				LoggedIn: userInfo.Name != "",
+				PaywallTemplate: nil,
 			}
 
 			//if main site, serve index.html from paywall
@@ -76,7 +78,8 @@ func main() {
 					http.Error(w, "404 not found", http.StatusNotFound)
 					return
 				}
-				err := tmpl.Execute(w, data)
+				data.PaywallTemplate = tmpl
+				err := tmpl.Template.Execute(w, data)
 				if err != nil {
 					log.Fatalf("Error executing template: %v", err)
 				}
@@ -89,7 +92,11 @@ func main() {
 					http.Error(w, "404 not found", http.StatusNotFound)
 					return
 				}
-				tmpl.Execute(w, data)
+				data.PaywallTemplate = tmpl
+				err := tmpl.Template.Execute(w, data)
+				if err != nil {
+					log.Fatalf("Error executing template: %v", err)
+				}
 				return
 				//else, if no file extension, also serve template
 			} else if filepath.Ext(path) == "" {
@@ -98,7 +105,11 @@ func main() {
 					http.Error(w, "404 not found", http.StatusNotFound)
 					return
 				}
-				tmpl.Execute(w, data)
+				data.PaywallTemplate = tmpl
+				err := tmpl.Template.Execute(w, data)
+				if err != nil {
+					log.Fatalf("Error executing template: %v", err)
+				}
 				return
 				// if not html file or no file extension, serve from file server
 			} else {
@@ -123,5 +134,4 @@ func main() {
 	if err := httpServer.ListenAndServe(); err != nil {
 		log.Printf("[PANIC] failed to start http server, %v", err)
 	}
-
 }

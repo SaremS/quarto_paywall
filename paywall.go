@@ -15,15 +15,23 @@ type UserInfo struct {
 	LoggedIn bool
 }
 
+type PaywallTemplate struct {
+	Template       template.Template
+	WalledContent  *template.HTML
+	PaywallContent *template.HTML
+}
+
 // paywall struct
 type Paywall struct {
-	tmpl_map map[string]*template.Template
+	tmpl_map map[string]*PaywallTemplate
 }
+
+
 
 // new paywall from filepath
 func NewPaywall(filePath string, filePathLoader RecursiveLoader) *Paywall {
 	// iterate over all files in all subfolders; only load html files
-	target_map, err := filePathLoader.WalkTarget(filePath, ".html", func(content string) string {
+	target_map, err := filePathLoader.WalkTarget(filePath, ".html", func(content string) PaywallTemplate {
 
 		content_app, err := appendScriptTagToHTML(content)
 
@@ -37,8 +45,39 @@ func NewPaywall(filePath string, filePathLoader RecursiveLoader) *Paywall {
 			log.Fatalf("failed to fetch and load html: %v", err)
 		}
 
-		return content_app
+		content_final, walled, err_final := extractAndReplaceContent(content_app)
 
+		if err_final != nil {
+			log.Fatalf("failed to fetch and load html: %v", err)
+		}
+
+		tmpl, err := template.New(filePath).Parse(content_final)
+
+		if err != nil {
+			log.Fatalf("failed to parse template: %v", err)
+		}
+
+		paywallContent := `<h1>Paywall</h1>`
+
+		var walledHtml *template.HTML
+
+		if walled == nil {
+			walledHtml = nil
+		} else {
+			walledHtmlBefore := template.HTML(*walled)
+			walledHtml = &walledHtmlBefore
+
+		}
+
+		paywallContentHtml := template.HTML(paywallContent)
+
+		paywallTemplate := PaywallTemplate{
+			Template: *tmpl,
+			WalledContent: walledHtml,
+			PaywallContent: &paywallContentHtml,
+		}
+
+		return paywallTemplate
 	})
 
 	if err != nil {
@@ -46,12 +85,11 @@ func NewPaywall(filePath string, filePathLoader RecursiveLoader) *Paywall {
 	}
 
 	//iterate over target_map and create template map
-	template_map := make(map[string]*template.Template)
+	template_map := make(map[string]*PaywallTemplate)
 	for key, value := range target_map {
-		tmpl, err := template.New(key).Parse(*value)
-		if err != nil {
-			log.Fatalf("failed to parse template: %v", err)
-		}
+		tmpl := value
+
+
 		template_map[key] = tmpl
 	}
 
@@ -212,4 +250,75 @@ func appendListItem(htmlStr, className, listItemContent string) (string, error) 
 	}
 
 	return buf.String(), nil
+}
+
+// findPaywalledDiv finds the <div> with class="PAYWALLED" and returns it and its parent.
+func findPaywalledDiv(n *html.Node) (*html.Node, *html.Node) {
+	if n.Type == html.ElementNode && n.Data == "div" {
+		for _, attr := range n.Attr {
+			if attr.Key == "class" && attr.Val == "PAYWALLED" {
+				return n, n.Parent
+			}
+		}
+	}
+	for c := n.FirstChild; c != nil; c = c.NextSibling {
+		if result, parent := findPaywalledDiv(c); result != nil {
+			return result, parent
+		}
+	}
+	return nil, nil
+}
+
+// extractAndReplaceContent processes the HTML content as described.
+func extractAndReplaceContent(htmlStr string) (string, *string, error) {
+	doc, err := html.Parse(strings.NewReader(htmlStr))
+	if err != nil {
+		return "", nil, fmt.Errorf("error parsing HTML: %w", err)
+	}
+
+	paywalledDiv, parent := findPaywalledDiv(doc)
+	if paywalledDiv == nil {
+		return htmlStr, nil, nil
+		return "", nil, fmt.Errorf("no <div class=\"PAYWALLED\"> found")
+	}
+
+	// Collect content after the PAYWALLED div
+	var contentAfterDiv bytes.Buffer
+	for sibling := paywalledDiv.NextSibling; sibling != nil; sibling = sibling.NextSibling {
+		if err := html.Render(&contentAfterDiv, sibling); err != nil {
+			return "", nil, fmt.Errorf("error rendering content after div: %w", err)
+		}
+	}
+
+	// Remove all siblings after the PAYWALLED div
+	for sibling := paywalledDiv.NextSibling; sibling != nil; {
+		next := sibling.NextSibling
+		parent.RemoveChild(sibling)
+		sibling = next
+	}
+
+	templateContent := `
+	{{ if .LoggedIn }}
+		{{ .PaywallTemplate.WalledContent }}
+	{{ else }}
+		{{ .PaywallTemplate.PaywallContent }}
+	{{ end }}
+	`
+
+	// Replace with template content
+	templateNode := &html.Node{
+		Type: html.RawNode,
+		Data: templateContent,
+	}
+	parent.AppendChild(templateNode)
+
+	// Render the modified HTML back to a string
+	var modifiedHTML bytes.Buffer
+	if err := html.Render(&modifiedHTML, doc); err != nil {
+		return "", nil, fmt.Errorf("error rendering modified HTML: %w", err)
+	}
+
+	contentAfterDivString := contentAfterDiv.String()
+
+	return modifiedHTML.String(), &contentAfterDivString, nil
 }
