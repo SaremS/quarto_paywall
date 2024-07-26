@@ -64,10 +64,12 @@ func main() {
 			data := struct {
 				Name     string
 				LoggedIn bool
+				HasPaid     bool
 				PaywallTemplate *PaywallTemplate
 			}{
 				Name:     userInfo.Name,
 				LoggedIn: userInfo.Name != "",
+				HasPaid:     true,
 				PaywallTemplate: nil,
 			}
 

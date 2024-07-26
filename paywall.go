@@ -18,6 +18,7 @@ type UserInfo struct {
 type PaywallTemplate struct {
 	Template       template.Template
 	WalledContent  *template.HTML
+	LoginwallContent *template.HTML
 	PaywallContent *template.HTML
 }
 
@@ -57,6 +58,7 @@ func NewPaywall(filePath string, filePathLoader RecursiveLoader) *Paywall {
 			log.Fatalf("failed to parse template: %v", err)
 		}
 
+		loginwallContent := `<h1>Loginwall</h1>`
 		paywallContent := `<h1>Paywall</h1>`
 
 		var walledHtml *template.HTML
@@ -69,11 +71,14 @@ func NewPaywall(filePath string, filePathLoader RecursiveLoader) *Paywall {
 
 		}
 
+		loginwallContentHtml := template.HTML(loginwallContent)
 		paywallContentHtml := template.HTML(paywallContent)
+		
 
 		paywallTemplate := PaywallTemplate{
 			Template: *tmpl,
 			WalledContent: walledHtml,
+			LoginwallContent: &loginwallContentHtml,
 			PaywallContent: &paywallContentHtml,
 		}
 
@@ -298,10 +303,12 @@ func extractAndReplaceContent(htmlStr string) (string, *string, error) {
 	}
 
 	templateContent := `
-	{{ if .LoggedIn }}
+	{{ if and .LoggedIn .HasPaid }}
 		{{ .PaywallTemplate.WalledContent }}
-	{{ else }}
+	{{ else if and (.LoggedIn) (not .HasPaid) }}
 		{{ .PaywallTemplate.PaywallContent }}
+	{{ else }}
+		{{ .PaywallTemplate.LoginwallContent }}
 	{{ end }}
 	`
 
