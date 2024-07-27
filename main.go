@@ -51,7 +51,8 @@ func main() {
 	r := chi.NewRouter()
 	r.Use(logger.New(logger.Log(log.Default()), logger.WithBody, logger.Prefix("[INFO]")).Handler)
 
-	paywall := NewPaywall("_site", &RecursiveFilePathLoader{})
+	paywallStatic, _ := LoadPaywallStatic("static")
+	paywall := NewPaywall("_site", &RecursiveFilePathLoader{}, paywallStatic)
 
 	r.Group(func(ro chi.Router) {
 		ro.Use(m.Trace)
@@ -74,7 +75,7 @@ func main() {
 			}
 
 			//if main site, serve index.html from paywall
-			if path == "/" {
+		if path == "/" {
 				tmpl, ok := paywall.tmpl_map["/index.html"]
 				if !ok {
 					http.Error(w, "404 not found", http.StatusNotFound)

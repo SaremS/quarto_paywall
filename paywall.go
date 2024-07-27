@@ -7,6 +7,7 @@ import (
 	"golang.org/x/net/html"
 	"html/template"
 	"io"
+	"io/ioutil"
 	"strings"
 )
 
@@ -22,19 +23,57 @@ type PaywallTemplate struct {
 	PaywallContent *template.HTML
 }
 
+type PaywallStatic struct {
+	Paywall string
+	Registerwall string
+	LoginGithub string
+}
+
+func LoadPaywallStatic(path string) (*PaywallStatic, error) {
+	paywallContent, err := ReadFileToString(path + "/paywall.html")
+	if err != nil {
+		return nil, err
+	}
+
+	registerwallContent, err := ReadFileToString(path + "/registerwall.html")
+	if err != nil {
+		return nil, err
+	}
+
+	loginGithubContent, err := ReadFileToString(path + "/login_github.html")
+	if err != nil {
+		return nil, err
+	}
+
+	return &PaywallStatic{
+		Paywall: paywallContent,
+		Registerwall: registerwallContent,
+		LoginGithub: loginGithubContent,
+	}, nil
+}
+
+func ReadFileToString(path string) (string, error) {
+	data, err := ioutil.ReadFile(path)
+	if err != nil {
+		return "", err
+	}
+
+	return string(data), nil
+}
+
+
 // paywall struct
 type Paywall struct {
 	tmpl_map map[string]*PaywallTemplate
 }
 
 
-
 // new paywall from filepath
-func NewPaywall(filePath string, filePathLoader RecursiveLoader) *Paywall {
+func NewPaywall(filePath string, filePathLoader RecursiveLoader, paywallStatic *PaywallStatic) *Paywall {
 	// iterate over all files in all subfolders; only load html files
 	target_map, err := filePathLoader.WalkTarget(filePath, ".html", func(content string) PaywallTemplate {
 
-		content_app, err := appendScriptTagToHTML(content)
+		content_app, err := appendHtmlToHtmlNode(content, paywallStatic.LoginGithub, "body")
 
 		if err != nil {
 			log.Fatalf("failed to fetch and load html: %v", err)
@@ -58,8 +97,8 @@ func NewPaywall(filePath string, filePathLoader RecursiveLoader) *Paywall {
 			log.Fatalf("failed to parse template: %v", err)
 		}
 
-		loginwallContent := `<h1>Loginwall</h1>`
-		paywallContent := `<h1>Paywall</h1>`
+		loginwallContent := paywallStatic.Registerwall
+		paywallContent := paywallStatic.Paywall
 
 		var walledHtml *template.HTML
 
@@ -101,60 +140,23 @@ func NewPaywall(filePath string, filePathLoader RecursiveLoader) *Paywall {
 	return &Paywall{tmpl_map: template_map}
 }
 
-func appendScriptTagToHTML(htmlString string) (string, error) {
-	scriptContent := `
-		function login(prov) {
-		  return new Promise((resolve, reject) => {
-		    const url = window.location.href + "?close=true";
-		    const eurl = encodeURIComponent(url);
-		    const win = window.open(
-		      "/auth/" + prov + "/login?id=auth-example&from=" + eurl
-		    );
-		    const interval = setInterval(() => {
-		      try {
-			if (win.closed) {
-			  reject(new Error("Login aborted"));
-			  clearInterval(interval);
-			  return;
-			}
-			if (win.location.search.indexOf("error") !== -1) {
-			  reject(new Error(win.location.search));
-			  win.close();
-			  clearInterval(interval);
-			  return;
-			}
-			if (win.location.href.indexOf(url) === 0) {
-			  resolve();
-			  win.close();
-			  clearInterval(interval);
-			}
-		      } catch (e) {
-		      }
-		    }, 100);
-		  });
-		}
-
-		function runLogin() {
-		login("github")
-			    .then(() => {
-			      window.location.replace(window.location.href);
-			    })
-		}
-		function runLogout() {
-		    fetch("/auth/logout")
-		      .then(() => {
-			window.location.replace(window.location.href);
-		      });
-	        }`
+func appendHtmlToHtmlNode(htmlDocString string, htmlInsertString string, appendNode string) (string, error) {
 
 	// Parse the HTML string
-	doc, _ := html.Parse(strings.NewReader(htmlString))
+	doc, err := html.Parse(strings.NewReader(htmlDocString))
+	if err != nil {	
+		return "", nil
+	}
+	target, err := html.Parse(strings.NewReader(htmlInsertString))
+	if err != nil {
+		return "", nil
+	}
 
 	// Find the <body> node
 	var bodyNode *html.Node
 	var f func(*html.Node)
 	f = func(n *html.Node) {
-		if n.Type == html.ElementNode && n.Data == "body" {
+		if n.Type == html.ElementNode && n.Data == appendNode {
 			bodyNode = n
 			return
 		}
@@ -164,18 +166,8 @@ func appendScriptTagToHTML(htmlString string) (string, error) {
 	}
 	f(doc)
 
-	// Create the new <script> node
-	scriptNode := &html.Node{
-		Type: html.ElementNode,
-		Data: "script",
-		FirstChild: &html.Node{
-			Type: html.TextNode,
-			Data: scriptContent,
-		},
-	}
-
 	// Append the <script> node to the <body> node
-	bodyNode.AppendChild(scriptNode)
+	bodyNode.AppendChild(target)
 
 	// Render the modified HTML back to a string
 	var buf bytes.Buffer
