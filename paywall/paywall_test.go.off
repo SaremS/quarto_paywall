@@ -1,4 +1,4 @@
-package main
+package paywall
 
 import (
 	"strings"

@@ -1,4 +1,4 @@
-package main
+package paywall
 
 import (
 	"bytes"
@@ -140,43 +140,6 @@ func NewPaywall(filePath string, filePathLoader RecursiveLoader, paywallStatic *
 	return &Paywall{tmpl_map: template_map}
 }
 
-func appendHtmlToHtmlNode(htmlDocString string, htmlInsertString string, appendNode string) (string, error) {
-
-	// Parse the HTML string
-	doc, err := html.Parse(strings.NewReader(htmlDocString))
-	if err != nil {	
-		return "", nil
-	}
-	target, err := html.Parse(strings.NewReader(htmlInsertString))
-	if err != nil {
-		return "", nil
-	}
-
-	// Find the <body> node
-	var bodyNode *html.Node
-	var f func(*html.Node)
-	f = func(n *html.Node) {
-		if n.Type == html.ElementNode && n.Data == appendNode {
-			bodyNode = n
-			return
-		}
-		for c := n.FirstChild; c != nil; c = c.NextSibling {
-			f(c)
-		}
-	}
-	f(doc)
-
-	// Append the <script> node to the <body> node
-	bodyNode.AppendChild(target)
-
-	// Render the modified HTML back to a string
-	var buf bytes.Buffer
-	w := io.Writer(&buf)
-	html.Render(w, doc)
-
-	return buf.String(), nil
-}
-
 func addLoginListElement(htmlString string) (string, error) {
 	targetString := `
 		{{ if .LoggedIn }}	
@@ -258,6 +221,7 @@ func findPaywalledDiv(n *html.Node) (*html.Node, *html.Node) {
 			}
 		}
 	}
+
 	for c := n.FirstChild; c != nil; c = c.NextSibling {
 		if result, parent := findPaywalledDiv(c); result != nil {
 			return result, parent
