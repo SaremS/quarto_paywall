@@ -56,6 +56,28 @@ func createNodeWithContent(content string, data string, key string, val string) 
 	return liNode
 }
 
+func getContentAfterClass(htmlStr string, className string) (string, error) {
+	doc, err := html.Parse(strings.NewReader(htmlStr))
+	if err != nil {
+		return "", fmt.Errorf("error parsing HTML: %w", err)
+	}
+
+	node := findNodeByClass(doc, className)
+	if node == nil {
+		return "", nil
+	}
+
+	var contentAfterDiv bytes.Buffer
+	for sibling := node.NextSibling; sibling != nil; sibling = sibling.NextSibling {
+		if err := html.Render(&contentAfterDiv, sibling); err != nil {
+			return "", fmt.Errorf("error rendering content after div: %w", err)
+		}
+	}
+
+	return contentAfterDiv.String(), nil
+}
+
+
 func findNodeByClassAndParent(n *html.Node, className string, parentClassName string) (*html.Node, *html.Node) {
 	node := findNodeByClass(n, className)
 	if node == nil {

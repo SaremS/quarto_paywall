@@ -13,75 +13,35 @@ import (
 
 
 // new paywall from filepath
-func NewPaywall(filePath string, filePathLoader RecursiveLoader, paywallStatic *PaywallStatic) *Paywall {
-	// iterate over all files in all subfolders; only load html files
-	target_map, err := filePathLoader.WalkTarget(filePath, ".html", func(content string) PaywallTemplate {
+func NewPaywall(stringDocs map[string]string, staticContent PaywallStaticContent) *Paywall {
+	
+	targetPaywall := newPaywall()
 
-		content_app, err := appendHtmlToHtmlNode(content, paywallStatic.LoginGithub, "body")
-
+	for path, content := range stringDocs {
+		contentWithLoginList, err := addLoginListElement(content)
 		if err != nil {
-			log.Fatalf("failed to fetch and load html: %v", err)
+			log.Printf("Error adding login list element path: %s, %w", path, err)
+			continue
 		}
-
-		content_app, err = addLoginListElement(content_app)
-
-		if err != nil {
-			log.Fatalf("failed to fetch and load html: %v", err)
-		}
-
-		content_final, walled, err_final := extractAndReplaceContent(content_app)
-
-		if err_final != nil {
-			log.Fatalf("failed to fetch and load html: %v", err)
-		}
-
-		tmpl, err := template.New(filePath).Parse(content_final)
-
-		if err != nil {
-			log.Fatalf("failed to parse template: %v", err)
-		}
-
-		loginwallContent := paywallStatic.Registerwall
-		paywallContent := paywallStatic.Paywall
-
-		var walledHtml *template.HTML
-
-		if walled == nil {
-			walledHtml = nil
-		} else {
-			walledHtmlBefore := template.HTML(*walled)
-			walledHtml = &walledHtmlBefore
-
-		}
-
-		loginwallContentHtml := template.HTML(loginwallContent)
-		paywallContentHtml := template.HTML(paywallContent)
 		
-
-		paywallTemplate := PaywallTemplate{
-			Template: *tmpl,
-			WalledContent: walledHtml,
-			LoginwallContent: &loginwallContentHtml,
-			PaywallContent: &paywallContentHtml,
+		contentExtracted, err := getContentAfterClass(contentWithLoginList, "PAYWALLED")
+		if err != nil {
+			log.Printf("Error extracting content after class path: %s, %w", path, err)
+			continue
 		}
 
-		return paywallTemplate
-	})
+		contentPaywallReplaced, err := replacePaywallContent(contentWithLoginList)
+		if err != nil {
+			log.Printf("Error replacing paywall content path: %s, %w", path, err)
+			continue
+		}
 
-	if err != nil {
-		log.Fatalf("failed to load templates: %v", err)
+		contentLoginScriptAdded, err := appendLoginScript(contentPaywallReplaced, staticContent.LoginScriptGithub)
+
+
+
+
 	}
-
-	//iterate over target_map and create template map
-	template_map := make(map[string]*PaywallTemplate)
-	for key, value := range target_map {
-		tmpl := value
-
-
-		template_map[key] = tmpl
-	}
-
-	return &Paywall{tmpl_map: template_map}
 }
 
 func addLoginListElement(htmlString string) (string, error) {
@@ -89,10 +49,10 @@ func addLoginListElement(htmlString string) (string, error) {
 		{{ if .LoggedIn }}	
 			<button class="nav-link" onclick="runLogout()">Logout</button>
 		{{ else }}
-			<button class="nav-link" onclick="runLogin()">Login</button>
+			<button class="nav-link" onclick="runLoginGithub()">Login</button>
 		{{ end }}`
 
-	result, err := appendListItem(htmlString, "navbar-nav navbar-nav-scroll ms-auto", targetString)
+	result, err := appendNewNodeWithContent(htmlString, "navbar-nav navbar-nav-scroll ms-auto", targetString, "li", "class", "nav-item")
 
 	if err != nil {
 		return "", err
@@ -101,34 +61,7 @@ func addLoginListElement(htmlString string) (string, error) {
 	return result, nil
 }
 
-
-// extractAndReplaceContent processes the HTML content as described.
-func extractAndReplaceContent(htmlStr string) (string, *string, error) {
-	doc, err := html.Parse(strings.NewReader(htmlStr))
-	if err != nil {
-		return "", nil, fmt.Errorf("error parsing HTML: %w", err)
-	}
-
-	paywalledDiv, parent := findPaywalledDiv(doc)
-	if paywalledDiv == nil {
-		return htmlStr, nil, nil
-		return "", nil, fmt.Errorf("no <div class=\"PAYWALLED\"> found")
-	}
-
-	// Collect content after the PAYWALLED div
-	var contentAfterDiv bytes.Buffer
-	for sibling := paywalledDiv.NextSibling; sibling != nil; sibling = sibling.NextSibling {
-		if err := html.Render(&contentAfterDiv, sibling); err != nil {
-			return "", nil, fmt.Errorf("error rendering content after div: %w", err)
-		}
-	}
-
-	// Remove all siblings after the PAYWALLED div
-	for sibling := paywalledDiv.NextSibling; sibling != nil; {
-		next := sibling.NextSibling
-		parent.RemoveChild(sibling)
-		sibling = next
-	}
+func replacePaywallContent(htmlStr string) (string, error) {
 
 	templateContent := `
 	{{ if and .LoggedIn .HasPaid }}
@@ -140,20 +73,19 @@ func extractAndReplaceContent(htmlStr string) (string, *string, error) {
 	{{ end }}
 	`
 
-	// Replace with template content
-	templateNode := &html.Node{
-		Type: html.RawNode,
-		Data: templateContent,
-	}
-	parent.AppendChild(templateNode)
+	htmlStrReplaced, err := replaceContentAfterClass(htmlStr, "PAYWALLED", templateContent)
 
-	// Render the modified HTML back to a string
-	var modifiedHTML bytes.Buffer
-	if err := html.Render(&modifiedHTML, doc); err != nil {
-		return "", nil, fmt.Errorf("error rendering modified HTML: %w", err)
+	if err != nil {
+		return "", err
 	}
 
-	contentAfterDivString := contentAfterDiv.String()
+	return htmlStrReplaced, nil
+}
 
-	return modifiedHTML.String(), &contentAfterDivString, nil
+func appendLoginScript(htmlStr string, script string) (string, error) {
+	result, err := appendHtmlToHtmlNode(htmlStr, "body", script)
+	if err != nil {
+		return "", err
+	}
+	return result, nil
 }
