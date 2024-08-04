@@ -2,6 +2,8 @@ package paywall
 
 import (
 	"html/template"
+	"strings"
+	"net/http"
 )
 
 type Paywall struct {
@@ -11,6 +13,16 @@ type Paywall struct {
 func newPaywall() *Paywall {
 	tmpl_map := make(map[string]PaywallTemplate)
 	return &Paywall{tmpl_map: tmpl_map}
+}
+
+func (p *Paywall) StripPrefixFromPaths(pathPrefix string) {
+	for path, tmpl := range p.tmpl_map {
+		if strings.HasPrefix(path, pathPrefix) {
+			newPath := strings.TrimPrefix(path, pathPrefix)
+			p.tmpl_map[newPath] = tmpl
+			delete(p.tmpl_map, path)
+		}
+	}
 }
 
 func (p *Paywall) GetTemplate(path string) (*PaywallTemplate, bool) {
@@ -27,9 +39,9 @@ type UserInfo struct {
 	LoggedIn bool
 }
 
-type UserInfoHasPaid {
-	Name string
-
+type UserInfoHasPaid struct {
+	UserInfo
+	HasPaid bool
 }
 
 type PaywallTemplate struct {
@@ -48,7 +60,12 @@ func newPaywallTemplate(path, content, walledContent, loginwallContent, paywallC
 	}, nil
 }
 
-func (p *Ren
+func (p *PaywallTemplate) RenderToHttpResponse(w http.ResponseWriter, userInfoHasPaid UserInfoHasPaid) error {
+	return p.Template.Execute(w, PaywallRenderContent{
+		UserInfoHasPaid: userInfoHasPaid,
+		PaywallContent:  p.Content,
+	})	
+}
 
 type PaywallContent struct {
 	WalledContent    template.HTML 
@@ -68,4 +85,9 @@ type PaywallStaticContent struct {
 	Paywall           string
 	Registerwall      string
 	LoginScriptGithub string
+}
+
+type PaywallRenderContent struct {
+	UserInfoHasPaid
+	PaywallContent
 }

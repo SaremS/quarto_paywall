@@ -1,14 +1,7 @@
 package paywall
 
 import (
-	"bytes"
-	"fmt"
 	log "github.com/go-pkgz/lgr"
-	"golang.org/x/net/html"
-	"html/template"
-	"io"
-	"io/ioutil"
-	"strings"
 )
 
 
@@ -20,33 +13,47 @@ func NewPaywall(stringDocs map[string]string, staticContent PaywallStaticContent
 	for path, content := range stringDocs {
 		contentWithLoginList, err := addLoginListElement(content)
 		if err != nil {
-			log.Printf("Error adding login list element path: %s, %w", path, err)
+			log.Printf("Error adding login list element path: %s, %v", path, err)
 			continue
 		}
 		
 		contentExtracted, err := getContentAfterClass(contentWithLoginList, "PAYWALLED")
 		if err != nil {
-			log.Printf("Error extracting content after class path: %s, %w", path, err)
+			log.Printf("Error extracting content after class path: %s, %v", path, err)
 			continue
 		}
 
 		contentPaywallReplaced, err := replacePaywallContent(contentWithLoginList)
 		if err != nil {
-			log.Printf("Error replacing paywall content path: %s, %w", path, err)
+			log.Printf("Error replacing paywall content path: %s, %v", path, err)
 			continue
 		}
 
 		contentLoginScriptAdded, err := appendLoginScript(contentPaywallReplaced, staticContent.LoginScriptGithub)
+		if err != nil {
+			log.Printf("Error adding login script path: %s, %v", path, err)
+			continue
+		}
 
+		template, err := newPaywallTemplate(path, contentLoginScriptAdded, contentExtracted, staticContent.Registerwall, staticContent.Paywall)
 
+		if err != nil {
+			log.Printf("Error creating paywall template path: %s, %v", path, err)
+			continue
+		}
 
-
+		targetPaywall.addTemplate(path, *template)
 	}
+
+	return targetPaywall
 }
+
+
+
 
 func addLoginListElement(htmlString string) (string, error) {
 	targetString := `
-		{{ if .LoggedIn }}	
+		{{ if .UserInfo.LoggedIn }}	
 			<button class="nav-link" onclick="runLogout()">Logout</button>
 		{{ else }}
 			<button class="nav-link" onclick="runLoginGithub()">Login</button>
@@ -64,12 +71,12 @@ func addLoginListElement(htmlString string) (string, error) {
 func replacePaywallContent(htmlStr string) (string, error) {
 
 	templateContent := `
-	{{ if and .LoggedIn .HasPaid }}
-		{{ .PaywallTemplate.WalledContent }}
-	{{ else if and (.LoggedIn) (not .HasPaid) }}
-		{{ .PaywallTemplate.PaywallContent }}
+	{{ if and .UserInfo.LoggedIn .UserInfo.HasPaid }}
+		{{ .PaywallRenderContent.WalledContent }}
+	{{ else if and (.UserInfo.LoggedIn) (not .UserInfo.HasPaid) }}
+		{{ .PaywallRenderContent.PaywallContent }}
 	{{ else }}
-		{{ .PaywallTemplate.LoginwallContent }}
+		{{ .PaywallRenderContent.LoginwallContent }}
 	{{ end }}
 	`
 
@@ -83,7 +90,7 @@ func replacePaywallContent(htmlStr string) (string, error) {
 }
 
 func appendLoginScript(htmlStr string, script string) (string, error) {
-	result, err := appendHtmlToHtmlNode(htmlStr, "body", script)
+	result, err := appendHtmlToHtmlNode(htmlStr, script, "body")
 	if err != nil {
 		return "", err
 	}

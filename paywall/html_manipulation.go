@@ -77,6 +77,39 @@ func getContentAfterClass(htmlStr string, className string) (string, error) {
 	return contentAfterDiv.String(), nil
 }
 
+func replaceContentAfterClass(htmlStr string, className string, replacement string) (string, error) {
+	doc, err := html.Parse(strings.NewReader(htmlStr))
+	if err != nil {
+		return "", fmt.Errorf("error parsing HTML: %w", err)
+	}
+
+	node := findNodeByClass(doc, className)
+	if node == nil {
+		return htmlStr, nil
+	}
+
+	// Remove all siblings after the PAYWALLED div
+	for sibling := node.NextSibling; sibling != nil; {
+		next := sibling.NextSibling
+		node.Parent.RemoveChild(sibling)
+		sibling = next
+	}
+
+	// Replace with template content
+	templateNode := &html.Node{
+		Type: html.RawNode,
+		Data: replacement,
+	}
+	node.Parent.AppendChild(templateNode)
+
+	// Render the modified HTML back to a string
+	var modifiedHTML bytes.Buffer
+	if err := html.Render(&modifiedHTML, doc); err != nil {
+		return "", fmt.Errorf("error rendering modified HTML: %w", err)
+	}
+
+	return modifiedHTML.String(), nil
+}
 
 func findNodeByClassAndParent(n *html.Node, className string, parentClassName string) (*html.Node, *html.Node) {
 	node := findNodeByClass(n, className)
@@ -127,7 +160,14 @@ func appendHtmlToHtmlNode(htmlDocString string, htmlInsertString string, appendN
 		return "", nil
 	}
 
+	//html parser places everything in a <html><head></head><body></body></html> structure, 
+	//if not present in initial string
 	insertNode := extractTargetNodePointer(insertDoc, "body").FirstChild
+	
+	//account for html parser placing e.g. script tag into head, rather than body
+	if insertNode == nil {
+		insertNode = extractTargetNodePointer(insertDoc, "head").FirstChild
+	}
 
 	//delete everything around insertNode, since html.Parse() places
 	//everything in a <html><head></head><body></body></html> structure
