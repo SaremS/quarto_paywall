@@ -30,6 +30,27 @@ func (p *Paywall) GetTemplate(path string) (*PaywallTemplate, bool) {
 	return &tmpl, ok
 }
 
+func (p *Paywall) WriteHtmlReponse(w http.ResponseWriter, path string, userInfoHasPaid UserInfoHasPaid) {
+	tmpl, ok := p.GetTemplate(path)
+	if !ok {
+		http.Error(w, "404 not found", http.StatusNotFound)
+		return
+	}
+	err := tmpl.renderToHttpResponse(w, userInfoHasPaid)
+	if err != nil {
+		http.Error(w, "500 internal server error", http.StatusInternalServerError)
+	}
+}
+
+func (p *Paywall) GetAsString(path string, userInfoHasPaid UserInfoHasPaid) (string, error) {
+	tmpl, ok := p.GetTemplate(path)
+	if !ok {
+		return "", nil
+	}
+
+	return tmpl.renderToString(userInfoHasPaid)
+}
+
 func (p *Paywall) addTemplate(path string, tmpl PaywallTemplate) {
 	p.tmpl_map[path] = tmpl
 }
@@ -60,11 +81,23 @@ func newPaywallTemplate(path, content, walledContent, loginwallContent, paywallC
 	}, nil
 }
 
-func (p *PaywallTemplate) RenderToHttpResponse(w http.ResponseWriter, userInfoHasPaid UserInfoHasPaid) error {
+func (p *PaywallTemplate) renderToHttpResponse(w http.ResponseWriter, userInfoHasPaid UserInfoHasPaid) error {
 	return p.Template.Execute(w, PaywallRenderContent{
 		UserInfoHasPaid: userInfoHasPaid,
 		PaywallContent:  p.Content,
 	})	
+}
+
+func (p *PaywallTemplate) renderToString(userInfoHasPaid UserInfoHasPaid) (string, error) {
+	var buf strings.Builder
+	err := p.Template.Execute(&buf, PaywallRenderContent{
+		UserInfoHasPaid: userInfoHasPaid,
+		PaywallContent:  p.Content,
+	})
+	if err != nil {
+		return "", err
+	}
+	return buf.String(), nil
 }
 
 type PaywallContent struct {

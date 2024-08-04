@@ -2,37 +2,34 @@ package paywall
 
 import (
 	log "github.com/go-pkgz/lgr"
+	"fmt"
 )
 
 
 // new paywall from filepath
-func NewPaywall(stringDocs map[string]string, staticContent PaywallStaticContent) *Paywall {
+func NewPaywall(stringDocs map[string]string, staticContent PaywallStaticContent) (*Paywall, error) {
 	
 	targetPaywall := newPaywall()
 
 	for path, content := range stringDocs {
 		contentWithLoginList, err := addLoginListElement(content)
 		if err != nil {
-			log.Printf("Error adding login list element path: %s, %v", path, err)
-			continue
+			return nil, fmt.Errorf("error adding login list element path: %s, %v", path, err)
 		}
 		
 		contentExtracted, err := getContentAfterClass(contentWithLoginList, "PAYWALLED")
 		if err != nil {
-			log.Printf("Error extracting content after class path: %s, %v", path, err)
-			continue
+			return nil, fmt.Errorf("error extracting content after class path: %s, %v", path, err)
 		}
 
 		contentPaywallReplaced, err := replacePaywallContent(contentWithLoginList)
 		if err != nil {
-			log.Printf("Error replacing paywall content path: %s, %v", path, err)
-			continue
+			return nil, fmt.Errorf("error replacing paywall content path: %s, %v", path, err)
 		}
 
 		contentLoginScriptAdded, err := appendLoginScript(contentPaywallReplaced, staticContent.LoginScriptGithub)
 		if err != nil {
-			log.Printf("Error adding login script path: %s, %v", path, err)
-			continue
+			return nil, fmt.Errorf("error adding login script path: %s, %v", path, err)
 		}
 
 		template, err := newPaywallTemplate(path, contentLoginScriptAdded, contentExtracted, staticContent.Registerwall, staticContent.Paywall)
@@ -45,7 +42,7 @@ func NewPaywall(stringDocs map[string]string, staticContent PaywallStaticContent
 		targetPaywall.addTemplate(path, *template)
 	}
 
-	return targetPaywall
+	return targetPaywall, nil
 }
 
 
@@ -72,11 +69,11 @@ func replacePaywallContent(htmlStr string) (string, error) {
 
 	templateContent := `
 	{{ if and .UserInfo.LoggedIn .UserInfo.HasPaid }}
-		{{ .PaywallRenderContent.WalledContent }}
+		{{ .PaywallContent.WalledContent }}
 	{{ else if and (.UserInfo.LoggedIn) (not .UserInfo.HasPaid) }}
-		{{ .PaywallRenderContent.PaywallContent }}
+		{{ .PaywallContent.PaywallContent }}
 	{{ else }}
-		{{ .PaywallRenderContent.LoginwallContent }}
+		{{ .PaywallContent.LoginwallContent }}
 	{{ end }}
 	`
 
