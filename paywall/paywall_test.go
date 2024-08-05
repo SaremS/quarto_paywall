@@ -1,9 +1,55 @@
 package paywall
 
 import (
-	"testing"
 	"strings"
+	"testing"
+	"net/http/httptest"
 )
+
+func TestStripPrefixFromPaths(t *testing.T) {
+	p := newPaywall()
+	p.addTemplate("test/path", PaywallTemplate{})
+
+	p.StripPrefixFromPaths("test")
+
+	if _, ok := p.GetTemplate("path"); ok {
+		t.Errorf("StripPrefixFromPaths() = %v, want %v", ok, false)
+	}
+}
+
+func TestWriteHtmlReponse(t *testing.T) {
+
+	stringDocs := make(map[string]string)
+	stringDocs["test"] = `<html><head></head><body><div class="navbar-nav navbar-nav-scroll ms-auto"></div><div class="PAYWALLED"></div><div class="Test">test</div></body></html>`
+
+	staticContent := PaywallStaticContent{
+		Paywall:           `<div>paywall</div>`,
+		Registerwall:      `<div>registerwall</div>`,
+		LoginScriptGithub: `<script>console.log("test")</script>`,
+	}
+
+	targetPaywall, err := NewPaywallFromStringDocs(stringDocs, staticContent)
+
+	if err != nil {
+		t.Fatalf("NewPaywall() error = %v", err)
+	}
+
+	userInfoHasPaid := UserInfoHasPaid{
+		UserInfo: UserInfo{
+			Name:     "",
+			LoggedIn: false,
+		},
+		HasPaid: false,
+	}
+
+	rr := httptest.NewRecorder()
+
+	targetPaywall.WriteHtmlReponse(rr, "test", userInfoHasPaid)
+
+	if rr.Code != 200 {
+		t.Errorf("WriteHtmlReponse() = %v, want %v", rr.Code, 200)
+	}
+}
 
 func TestAddLoginListElement(t *testing.T) {
 	baseHtml := `<html><head></head><body><div class="navbar-nav navbar-nav-scroll ms-auto"></div></body></html>`
@@ -86,18 +132,18 @@ func TestAppendLoginScript(t *testing.T) {
 	}
 }
 
-func TestNewPaywallWithPaywalledContent(t *testing.T) {
+func TestNewPaywallFromStringDocsWithPaywalledContent(t *testing.T) {
 	stringDocs := map[string]string{
 		"test": `<html><head></head><body><div class="navbar-nav navbar-nav-scroll ms-auto"></div><div class="PAYWALLED"></div><div class="Test">test</div></body></html>`,
 	}
 
-  	staticContent := PaywallStaticContent{	
-		Paywall: `<div>paywall</div>`,
-		Registerwall: `<div>registerwall</div>`,
+	staticContent := PaywallStaticContent{
+		Paywall:           `<div>paywall</div>`,
+		Registerwall:      `<div>registerwall</div>`,
 		LoginScriptGithub: `<script>console.log("test")</script>`,
 	}
 
-	targetPaywall, err := NewPaywall(stringDocs, staticContent)
+	targetPaywall, err := NewPaywallFromStringDocs(stringDocs, staticContent)
 
 	if err != nil {
 		t.Fatalf("NewPaywall() error = %v", err)
@@ -107,7 +153,7 @@ func TestNewPaywallWithPaywalledContent(t *testing.T) {
 
 	userInfoHasPaid := UserInfoHasPaid{
 		UserInfo: UserInfo{
-			Name: "",
+			Name:     "",
 			LoggedIn: false,
 		},
 		HasPaid: false,

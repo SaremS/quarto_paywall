@@ -160,10 +160,10 @@ func appendHtmlToHtmlNode(htmlDocString string, htmlInsertString string, appendN
 		return "", nil
 	}
 
-	//html parser places everything in a <html><head></head><body></body></html> structure, 
+	//html parser places everything in a <html><head></head><body></body></html> structure,
 	//if not present in initial string
 	insertNode := extractTargetNodePointer(insertDoc, "body").FirstChild
-	
+
 	//account for html parser placing e.g. script tag into head, rather than body
 	if insertNode == nil {
 		insertNode = extractTargetNodePointer(insertDoc, "head").FirstChild

@@ -1,14 +1,64 @@
 package paywall
 
 import (
-	log "github.com/go-pkgz/lgr"
 	"fmt"
+	log "github.com/go-pkgz/lgr"
+	"strings"
+	"net/http"
 )
 
+type Paywall struct {
+	tmpl_map map[string]PaywallTemplate
+}
+
+func newPaywall() *Paywall {
+	tmpl_map := make(map[string]PaywallTemplate)
+	return &Paywall{tmpl_map: tmpl_map}
+}
+
+func (p *Paywall) StripPrefixFromPaths(pathPrefix string) {
+	for path, tmpl := range p.tmpl_map {
+		if strings.HasPrefix(path, pathPrefix) {
+			newPath := strings.TrimPrefix(path, pathPrefix)
+			p.tmpl_map[newPath] = tmpl
+			delete(p.tmpl_map, path)
+		}
+	}
+}
+
+func (p *Paywall) GetTemplate(path string) (*PaywallTemplate, bool) {
+	tmpl, ok := p.tmpl_map[path]
+	return &tmpl, ok
+}
+
+func (p *Paywall) WriteHtmlReponse(w http.ResponseWriter, path string, userInfoHasPaid UserInfoHasPaid) {
+	tmpl, ok := p.GetTemplate(path)
+	if !ok {
+		http.Error(w, "404 not found", http.StatusNotFound)
+		return
+	}
+	err := tmpl.renderToHttpResponse(w, userInfoHasPaid)
+	if err != nil {
+		http.Error(w, "500 internal server error", http.StatusInternalServerError)
+	}
+}
+
+func (p *Paywall) GetAsString(path string, userInfoHasPaid UserInfoHasPaid) (string, error) {
+	tmpl, ok := p.GetTemplate(path)
+	if !ok {
+		return "", nil
+	}
+
+	return tmpl.renderToString(userInfoHasPaid)
+}
+
+func (p *Paywall) addTemplate(path string, tmpl PaywallTemplate) {
+	p.tmpl_map[path] = tmpl
+}
 
 // new paywall from filepath
-func NewPaywall(stringDocs map[string]string, staticContent PaywallStaticContent) (*Paywall, error) {
-	
+func NewPaywallFromStringDocs(stringDocs map[string]string, staticContent PaywallStaticContent) (*Paywall, error) {
+
 	targetPaywall := newPaywall()
 
 	for path, content := range stringDocs {
@@ -16,7 +66,7 @@ func NewPaywall(stringDocs map[string]string, staticContent PaywallStaticContent
 		if err != nil {
 			return nil, fmt.Errorf("error adding login list element path: %s, %v", path, err)
 		}
-		
+
 		contentExtracted, err := getContentAfterClass(contentWithLoginList, "PAYWALLED")
 		if err != nil {
 			return nil, fmt.Errorf("error extracting content after class path: %s, %v", path, err)
@@ -44,9 +94,6 @@ func NewPaywall(stringDocs map[string]string, staticContent PaywallStaticContent
 
 	return targetPaywall, nil
 }
-
-
-
 
 func addLoginListElement(htmlString string) (string, error) {
 	targetString := `

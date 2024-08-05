@@ -2,58 +2,9 @@ package paywall
 
 import (
 	"html/template"
-	"strings"
 	"net/http"
+	"strings"
 )
-
-type Paywall struct {
-	tmpl_map map[string]PaywallTemplate
-}
-
-func newPaywall() *Paywall {
-	tmpl_map := make(map[string]PaywallTemplate)
-	return &Paywall{tmpl_map: tmpl_map}
-}
-
-func (p *Paywall) StripPrefixFromPaths(pathPrefix string) {
-	for path, tmpl := range p.tmpl_map {
-		if strings.HasPrefix(path, pathPrefix) {
-			newPath := strings.TrimPrefix(path, pathPrefix)
-			p.tmpl_map[newPath] = tmpl
-			delete(p.tmpl_map, path)
-		}
-	}
-}
-
-func (p *Paywall) GetTemplate(path string) (*PaywallTemplate, bool) {
-	tmpl, ok := p.tmpl_map[path]
-	return &tmpl, ok
-}
-
-func (p *Paywall) WriteHtmlReponse(w http.ResponseWriter, path string, userInfoHasPaid UserInfoHasPaid) {
-	tmpl, ok := p.GetTemplate(path)
-	if !ok {
-		http.Error(w, "404 not found", http.StatusNotFound)
-		return
-	}
-	err := tmpl.renderToHttpResponse(w, userInfoHasPaid)
-	if err != nil {
-		http.Error(w, "500 internal server error", http.StatusInternalServerError)
-	}
-}
-
-func (p *Paywall) GetAsString(path string, userInfoHasPaid UserInfoHasPaid) (string, error) {
-	tmpl, ok := p.GetTemplate(path)
-	if !ok {
-		return "", nil
-	}
-
-	return tmpl.renderToString(userInfoHasPaid)
-}
-
-func (p *Paywall) addTemplate(path string, tmpl PaywallTemplate) {
-	p.tmpl_map[path] = tmpl
-}
 
 type UserInfo struct {
 	Name     string
@@ -85,7 +36,7 @@ func (p *PaywallTemplate) renderToHttpResponse(w http.ResponseWriter, userInfoHa
 	return p.Template.Execute(w, PaywallRenderContent{
 		UserInfoHasPaid: userInfoHasPaid,
 		PaywallContent:  p.Content,
-	})	
+	})
 }
 
 func (p *PaywallTemplate) renderToString(userInfoHasPaid UserInfoHasPaid) (string, error) {
@@ -101,7 +52,7 @@ func (p *PaywallTemplate) renderToString(userInfoHasPaid UserInfoHasPaid) (strin
 }
 
 type PaywallContent struct {
-	WalledContent    template.HTML 
+	WalledContent    template.HTML
 	LoginwallContent template.HTML
 	PaywallContent   template.HTML
 }

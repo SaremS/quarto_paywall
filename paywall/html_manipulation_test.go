@@ -1,9 +1,9 @@
 package paywall
 
 import (
-	"testing"
-	"strings"
 	"golang.org/x/net/html"
+	"strings"
+	"testing"
 )
 
 func TestAppendHtmlToHtmlNode(t *testing.T) {
@@ -103,7 +103,7 @@ func TestFindNodeByClassAndParent(t *testing.T) {
 	}
 
 	className := "test"
-	
+
 	node, nodeParent := findNodeByClassAndParent(doc, className, "body")
 
 	if node == nil {
