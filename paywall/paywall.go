@@ -117,9 +117,9 @@ func addLoginListElement(htmlString string) (string, error) {
 func replacePaywallContent(htmlStr string) (string, error) {
 
 	templateContent := `
-	{{ if and .UserInfo.LoggedIn .UserInfo.HasPaid }}
+	{{ if and .UserInfoHasPaid.LoggedIn .UserInfoHasPaid.HasPaid }}
 		{{ .PaywallContent.WalledContent }}
-	{{ else if and (.UserInfo.LoggedIn) (not .UserInfo.HasPaid) }}
+	{{ else if and (.UserInfoHasPaid.LoggedIn) (not .UserInfoHasPaid.HasPaid) }}
 		{{ .PaywallContent.PaywallContent }}
 	{{ else }}
 		{{ .PaywallContent.LoginwallContent }}

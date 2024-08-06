@@ -1,7 +1,6 @@
 #auth-server files
-**/target/
-**/Cargo.lock
-**/tarpaulin-report.html
+**/*.out
+cover.html
 
 #quarto files
 **/_site/

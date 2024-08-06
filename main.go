@@ -3,16 +3,16 @@ package main
 import (
 	//"html/template"
 	"net/http"
-	"time"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-pkgz/auth"
 	"github.com/go-pkgz/auth/avatar"
 	"github.com/go-pkgz/auth/token"
-	"github.com/go-pkgz/rest/logger"
 	log "github.com/go-pkgz/lgr"
+	"github.com/go-pkgz/rest/logger"
 
 	"gowall/files"
 	"gowall/paywall"
@@ -60,17 +60,17 @@ func main() {
 		panic(err)
 	}
 
-	paywallContent, _ := fileLoader.ReadFileToString("static/paywall.html")	
+	paywallContent, _ := fileLoader.ReadFileToString("static/paywall.html")
 	registerwallContent, _ := fileLoader.ReadFileToString("static/registerwall.html")
 	loginscriptContent, _ := fileLoader.ReadFileToString("static/login_github.html")
 
 	paywallStaticContent := paywall.PaywallStaticContent{
-		Paywall: paywallContent,
-		Registerwall: registerwallContent,
+		Paywall:           paywallContent,
+		Registerwall:      registerwallContent,
 		LoginScriptGithub: loginscriptContent,
 	}
-	
-	pw, err := paywall.NewPaywallFromStringDocs(htmlFiles, paywallStaticContent)	
+
+	pw, err := paywall.NewPaywallFromStringDocs(htmlFiles, paywallStaticContent)
 
 	pw.StripPrefixFromPaths("_site")
 
@@ -88,8 +88,8 @@ func main() {
 			}
 			uInfoHasPaid := paywall.NewUserInfoHasPaid(uInfo.Name, uInfo.Name != "", false)
 
-		if path == "/" {
-				pw.WriteHtmlReponse(w, "index.html", uInfoHasPaid)
+			if path == "/" {
+				pw.WriteHtmlReponse(w, "/index.html", uInfoHasPaid)
 				return
 			}
 
@@ -98,7 +98,7 @@ func main() {
 				return
 				//else, if no file extension, also serve template
 			} else if filepath.Ext(path) == "" {
-				pw.WriteHtmlReponse(w, path + ".html", uInfoHasPaid)
+				pw.WriteHtmlReponse(w, path+".html", uInfoHasPaid)
 				return
 				// if not html file or no file extension, serve from file server
 			} else {
