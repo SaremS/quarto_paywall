@@ -3,19 +3,19 @@ package main
 import (
 	//"html/template"
 	"net/http"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
-
 	"github.com/go-pkgz/auth"
 	"github.com/go-pkgz/auth/avatar"
 	"github.com/go-pkgz/auth/token"
+	log "github.com/go-pkgz/lgr"
 	"github.com/go-pkgz/rest/logger"
 
-	log "github.com/go-pkgz/lgr"
-
-	"path/filepath"
-	"strings"
+	"gowall/files"
+	"gowall/paywall"
 )
 
 func main() {
@@ -51,65 +51,54 @@ func main() {
 	r := chi.NewRouter()
 	r.Use(logger.New(logger.Log(log.Default()), logger.WithBody, logger.Prefix("[INFO]")).Handler)
 
-	paywall := NewPaywall("_site", &RecursiveFilePathLoader{})
+	fileLoader := files.NewDiskFileLoader()
+	recursiveLoader := files.NewRecursiveFilePathLoader(fileLoader)
+
+	htmlFiles, err := recursiveLoader.WalkTarget("_site", ".html")
+
+	if err != nil {
+		panic(err)
+	}
+
+	paywallContent, _ := fileLoader.ReadFileToString("static/paywall.html")
+	registerwallContent, _ := fileLoader.ReadFileToString("static/registerwall.html")
+	loginscriptContent, _ := fileLoader.ReadFileToString("static/login_github.html")
+
+	paywallStaticContent := paywall.PaywallStaticContent{
+		Paywall:           paywallContent,
+		Registerwall:      registerwallContent,
+		LoginScriptGithub: loginscriptContent,
+	}
+
+	pw, err := paywall.NewPaywallFromStringDocs(htmlFiles, paywallStaticContent)
+
+	pw.StripPrefixFromPaths("_site")
+
+	if err != nil {
+		panic(err)
+	}
 
 	r.Group(func(ro chi.Router) {
 		ro.Use(m.Trace)
 		ro.Get("/*", func(w http.ResponseWriter, r *http.Request) {
 			path := r.URL.Path
-			userInfo, err := token.GetUserInfo(r)
+			uInfo, err := token.GetUserInfo(r)
 			if err != nil {
 				log.Printf("failed to get user info, %s", err)
 			}
-			data := struct {
-				Name     string
-				LoggedIn bool
-				PaywallTemplate *PaywallTemplate
-			}{
-				Name:     userInfo.Name,
-				LoggedIn: userInfo.Name != "",
-				PaywallTemplate: nil,
-			}
+			uInfoHasPaid := paywall.NewUserInfoHasPaid(uInfo.Name, uInfo.Name != "", false)
 
-			//if main site, serve index.html from paywall
 			if path == "/" {
-				tmpl, ok := paywall.tmpl_map["/index.html"]
-				if !ok {
-					http.Error(w, "404 not found", http.StatusNotFound)
-					return
-				}
-				data.PaywallTemplate = tmpl
-				err := tmpl.Template.Execute(w, data)
-				if err != nil {
-					log.Fatalf("Error executing template: %v", err)
-				}
+				pw.WriteHtmlReponse(w, "/index.html", uInfoHasPaid)
 				return
 			}
 
 			if strings.HasSuffix(path, ".html") {
-				tmpl, ok := paywall.tmpl_map[path]
-				if !ok {
-					http.Error(w, "404 not found", http.StatusNotFound)
-					return
-				}
-				data.PaywallTemplate = tmpl
-				err := tmpl.Template.Execute(w, data)
-				if err != nil {
-					log.Fatalf("Error executing template: %v", err)
-				}
+				pw.WriteHtmlReponse(w, path, uInfoHasPaid)
 				return
 				//else, if no file extension, also serve template
 			} else if filepath.Ext(path) == "" {
-				tmpl, ok := paywall.tmpl_map[path+".html"]
-				if !ok {
-					http.Error(w, "404 not found", http.StatusNotFound)
-					return
-				}
-				data.PaywallTemplate = tmpl
-				err := tmpl.Template.Execute(w, data)
-				if err != nil {
-					log.Fatalf("Error executing template: %v", err)
-				}
+				pw.WriteHtmlReponse(w, path+".html", uInfoHasPaid)
 				return
 				// if not html file or no file extension, serve from file server
 			} else {

@@ -1,0 +1,45 @@
+<script>
+function loginGithub(prov) {
+		  return new Promise((resolve, reject) => {
+		    const url = window.location.href + "?close=true";
+		    const eurl = encodeURIComponent(url);
+		    const win = window.open(
+		      "/auth/" + prov + "/login?id=auth-example&from=" + eurl
+		    );
+		    const interval = setInterval(() => {
+		      try {
+			if (win.closed) {
+			  reject(new Error("Login aborted"));
+			  clearInterval(interval);
+			  return;
+			}
+			if (win.location.search.indexOf("error") !== -1) {
+			  reject(new Error(win.location.search));
+			  win.close();
+			  clearInterval(interval);
+			  return;
+			}
+			if (win.location.href.indexOf(url) === 0) {
+			  resolve();
+			  win.close();
+			  clearInterval(interval);
+			}
+		      } catch (e) {
+		      }
+		    }, 100);
+		  });
+		}
+
+		function runLoginGithub() {
+			loginGithub("github")
+			    .then(() => {
+			      window.location.replace(window.location.href);
+			    })
+		}
+		function runLogout() {
+		    fetch("/auth/logout")
+		      .then(() => {
+			window.location.replace(window.location.href);
+		      });
+	        }
+</script>

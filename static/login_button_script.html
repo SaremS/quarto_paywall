@@ -1,0 +1,52 @@
+<script type="text/javascript">
+  var modal = document.getElementById("user-modal");
+  var btn = document.getElementById("user-modal-button");
+  var span = document.getElementsByClassName("close")[0];
+
+  var paywall_login_button = document.getElementById("paywall-login-button");
+
+  if (paywall_login_button) {
+    paywall_login_button.onclick = function () {
+      modal.style.display = "block";
+    };
+  }
+
+  var paywall_unlock_button = document.getElementById("paywall-unlock-button");
+
+  if (paywall_unlock_button) {
+    paywall_unlock_button.onclick = function () {
+      document.body.style.cursor = "wait";
+      paywall_unlock_button.disabled = true;
+
+      fetch("/purchase/checkout", {
+        method: "POST",
+        body: JSON.stringify({
+          purchase_target: window.location.pathname,
+        }),
+        headers: {
+          "Content-type": "application/json; charset=UTF-8",
+        },
+      })
+        .then((response) => response.json())
+        .then((url) => window.open(url, "_self").focus())
+        .finally(() => {
+          document.body.style.cursor = "default";
+          paywall_unlock_button.disabled = false;
+        });
+    };
+  }
+
+  btn.onclick = function () {
+    modal.style.display = "block";
+  };
+
+  span.onclick = function () {
+    modal.style.display = "none";
+  };
+
+  window.onclick = function (event) {
+    if (event.target == modal) {
+      modal.style.display = "none";
+    }
+  };
+</script>
