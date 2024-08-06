@@ -34,11 +34,13 @@ func (p *Paywall) GetTemplate(path string) (*PaywallTemplate, bool) {
 func (p *Paywall) WriteHtmlReponse(w http.ResponseWriter, path string, userInfoHasPaid UserInfoHasPaid) {
 	tmpl, ok := p.GetTemplate(path)
 	if !ok {
+		log.Printf("404 not found path: %s", path)
 		http.Error(w, "404 not found", http.StatusNotFound)
 		return
 	}
 	err := tmpl.renderToHttpResponse(w, userInfoHasPaid)
 	if err != nil {
+		log.Fatalf("Error executing template on path %s: %v", path, err)
 		http.Error(w, "500 internal server error", http.StatusInternalServerError)
 	}
 }

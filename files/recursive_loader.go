@@ -16,7 +16,7 @@ type RecursiveFilePathLoader struct {
 	fileLoader FileLoader
 }
 
-func newRecursiveFilePathLoader(fileLoader FileLoader) *RecursiveFilePathLoader {
+func NewRecursiveFilePathLoader(fileLoader FileLoader) *RecursiveFilePathLoader {
 	return &RecursiveFilePathLoader{
 		fileLoader: fileLoader,
 	}
@@ -26,14 +26,14 @@ type DummyPathLoader struct {
 	fileLoader DummyFileLoader
 }
 
-func newDummyPathLoader(pseudoString string) *DummyPathLoader {
+func NewDummyPathLoader(pseudoString string) *DummyPathLoader {
 	return &DummyPathLoader{
-		fileLoader: *newDummyFileLoader(pseudoString),
+		fileLoader: *NewDummyFileLoader(pseudoString),
 	}
 }
 
-func (r *RecursiveFilePathLoader) WalkTarget(targetPath string, fileType string) (map[string]*string, error) {
-	targetMap := make(map[string]*string)
+func (r *RecursiveFilePathLoader) WalkTarget(targetPath string, fileType string) (map[string]string, error) {
+	targetMap := make(map[string]string)
 	err := filepath.Walk(targetPath, func(path string, info os.FileInfo, err error) error {
 		if strings.HasSuffix(path, fileType) {
 			log.Printf("Loaded path: %s", path)
@@ -43,7 +43,7 @@ func (r *RecursiveFilePathLoader) WalkTarget(targetPath string, fileType string)
 				return err
 			}
 
-			targetMap[path] = &content
+			targetMap[path] = content
 			return nil
 		}
 		if err != nil {

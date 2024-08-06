@@ -11,7 +11,7 @@ type FileLoader interface {
 
 type DiskFileLoader struct{}
 
-func newDiskFileLoader() *DiskFileLoader {
+func NewDiskFileLoader() *DiskFileLoader {
 	return &DiskFileLoader{}
 }
 
@@ -28,7 +28,7 @@ type DummyFileLoader struct{
 	pseudoString string
 }
 
-func newDummyFileLoader(pseudoString string) *DummyFileLoader {
+func NewDummyFileLoader(pseudoString string) *DummyFileLoader {
 	return &DummyFileLoader{
 		pseudoString: pseudoString,
 	}

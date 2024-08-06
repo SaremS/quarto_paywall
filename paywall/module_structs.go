@@ -16,6 +16,16 @@ type UserInfoHasPaid struct {
 	HasPaid bool
 }
 
+func NewUserInfoHasPaid(name string, loggedIn, hasPaid bool) UserInfoHasPaid {
+	return UserInfoHasPaid{
+		UserInfo: UserInfo{
+			Name:     name,
+			LoggedIn: loggedIn,
+		},
+		HasPaid: hasPaid,
+	}
+}
+
 type PaywallTemplate struct {
 	Template template.Template
 	Content  PaywallContent

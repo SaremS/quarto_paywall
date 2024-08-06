@@ -5,7 +5,7 @@ import (
 )
 
 func TestSingleStringLoader(t *testing.T) {
-	loader := newDummyPathLoader("test")
+	loader := NewDummyPathLoader("test")
 
 	targetPath := "test"
 	fileType := ".txt"
