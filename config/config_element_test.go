@@ -6,8 +6,8 @@ import (
 
 func TestNewConfigElement(t *testing.T) {
 	c, err := newConfigElement(
-		"/test/whatever.html",
 		"test",
+		"/test/whatever.html",
 		"abcd",
 		"12.34",
 		"EUR",
@@ -24,8 +24,8 @@ func TestNewConfigElement(t *testing.T) {
 
 func TestGetPath(t *testing.T) {
 	c, _ := newConfigElement(
-		"/test/whatever.html",
 		"test",
+		"/test/whatever.html",
 		"abcd",
 		"12.34",
 		"EUR",
@@ -38,8 +38,8 @@ func TestGetPath(t *testing.T) {
 
 func TestGetName(t *testing.T) {
 	c, _ := newConfigElement(
-		"/test/whatever.html",
 		"test",
+		"/test/whatever.html",
 		"abcd",
 		"12.34",
 		"EUR",
@@ -52,8 +52,8 @@ func TestGetName(t *testing.T) {
 
 func TestGetId(t *testing.T) {
 	c, _ := newConfigElement(
-		"/test/whatever.html",
 		"test",
+		"/test/whatever.html",
 		"abcd",
 		"12.34",
 		"EUR",
@@ -66,8 +66,8 @@ func TestGetId(t *testing.T) {
 
 func TestGetPrice(t *testing.T) {
 	c, _ := newConfigElement(
-		"/test/whatever.html",
 		"test",
+		"/test/whatever.html",
 		"abcd",
 		"12.34",
 		"EUR",
@@ -80,8 +80,8 @@ func TestGetPrice(t *testing.T) {
 
 func TestGetCurrency(t *testing.T) {
 	c, _ := newConfigElement(
-		"/test/whatever.html",
 		"test",
+		"/test/whatever.html",
 		"abcd",
 		"12.34",
 		"EUR",
@@ -94,8 +94,8 @@ func TestGetCurrency(t *testing.T) {
 
 func TestGetCutoffClassname(t *testing.T) {
 	c, _ := newConfigElement(
-		"/test/whatever.html",
 		"test",
+		"/test/whatever.html",
 		"abcd",
 		"12.34",
 		"EUR",
@@ -103,5 +103,19 @@ func TestGetCutoffClassname(t *testing.T) {
 	)
 	if c.GetCutoffClassname() != "PAYWALLED" {
 		t.Errorf("GetCutoffClassname() = %v, want PAYWALLED", c.GetCutoffClassname())
+	}
+}
+
+func TestCurrencyValid(t *testing.T) {
+	_, err := newConfigElement(
+		"test",
+		"/test/whatever.html",
+		"abcd",
+		"12.34",
+		"ASDF",
+		"PAYWALLED",
+	)
+	if err == nil {
+		t.Errorf("Invalid Currency should error our")
 	}
 }

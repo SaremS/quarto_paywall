@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-func currencyStringToMinorInt(amount string) (int, error) {
+func priceStringToMinorInt(amount string) (int, error) {
 	parts := strings.SplitN(amount, ".", 2)
 
 	majorPart := 0
@@ -42,4 +42,12 @@ func currencyStringToMinorInt(amount string) (int, error) {
 	totalMinorUnits := majorPart + minorPart
 
 	return totalMinorUnits, nil
+}
+
+func isValidCurrency(currency string) bool {
+	set := map[string]bool{
+		"EUR": true,
+		"USD": true,
+	}
+	return set[currency]
 }
