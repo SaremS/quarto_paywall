@@ -2,6 +2,8 @@ package main
 
 import (
 	//"html/template"
+	"gowall/files"
+	"gowall/paywall"
 	"net/http"
 	"path/filepath"
 	"strings"
@@ -13,9 +15,6 @@ import (
 	"github.com/go-pkgz/auth/token"
 	log "github.com/go-pkgz/lgr"
 	"github.com/go-pkgz/rest/logger"
-
-	"gowall/files"
-	"gowall/paywall"
 )
 
 func main() {
@@ -45,7 +44,7 @@ func main() {
 	authService.AddProvider("github", githubClientID, githubClientSecret)
 	m := authService.Middleware()
 
-	//tmpl := template.Must(template.ParseFiles("templates/index.html"))
+	// tmpl := template.Must(template.ParseFiles("templates/index.html"))
 
 	// Set up router
 	r := chi.NewRouter()
@@ -55,7 +54,6 @@ func main() {
 	recursiveLoader := files.NewRecursiveFilePathLoader(fileLoader)
 
 	htmlFiles, err := recursiveLoader.WalkTarget("_site", ".html")
-
 	if err != nil {
 		panic(err)
 	}
@@ -96,7 +94,7 @@ func main() {
 			if strings.HasSuffix(path, ".html") {
 				pw.WriteHtmlReponse(w, path, uInfoHasPaid)
 				return
-				//else, if no file extension, also serve template
+				// else, if no file extension, also serve template
 			} else if filepath.Ext(path) == "" {
 				pw.WriteHtmlReponse(w, path+".html", uInfoHasPaid)
 				return
