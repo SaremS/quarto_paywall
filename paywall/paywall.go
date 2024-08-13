@@ -2,9 +2,10 @@ package paywall
 
 import (
 	"fmt"
-	log "github.com/go-pkgz/lgr"
-	"strings"
 	"net/http"
+	"strings"
+
+	log "github.com/go-pkgz/lgr"
 )
 
 type Paywall struct {
@@ -54,13 +55,17 @@ func (p *Paywall) GetAsString(path string, userInfoHasPaid UserInfoHasPaid) (str
 	return tmpl.renderToString(userInfoHasPaid)
 }
 
+func (p *Paywall) ContainsPath(path string) bool {
+	_, ok := p.tmpl_map[path]
+	return ok
+}
+
 func (p *Paywall) addTemplate(path string, tmpl PaywallTemplate) {
 	p.tmpl_map[path] = tmpl
 }
 
 // new paywall from filepath
 func NewPaywallFromStringDocs(stringDocs map[string]string, staticContent PaywallStaticContent) (*Paywall, error) {
-
 	targetPaywall := newPaywall()
 
 	for path, content := range stringDocs {
@@ -85,7 +90,6 @@ func NewPaywallFromStringDocs(stringDocs map[string]string, staticContent Paywal
 		}
 
 		template, err := newPaywallTemplate(path, contentLoginScriptAdded, contentExtracted, staticContent.Registerwall, staticContent.Paywall)
-
 		if err != nil {
 			log.Printf("Error creating paywall template path: %s, %v", path, err)
 			continue
@@ -106,7 +110,6 @@ func addLoginListElement(htmlString string) (string, error) {
 		{{ end }}`
 
 	result, err := appendNewNodeWithContent(htmlString, "navbar-nav navbar-nav-scroll ms-auto", targetString, "li", "class", "nav-item")
-
 	if err != nil {
 		return "", err
 	}
@@ -115,7 +118,6 @@ func addLoginListElement(htmlString string) (string, error) {
 }
 
 func replacePaywallContent(htmlStr string) (string, error) {
-
 	templateContent := `
 	{{ if and .UserInfoHasPaid.LoggedIn .UserInfoHasPaid.HasPaid }}
 		{{ .PaywallContent.WalledContent }}
@@ -127,7 +129,6 @@ func replacePaywallContent(htmlStr string) (string, error) {
 	`
 
 	htmlStrReplaced, err := replaceContentAfterClass(htmlStr, "PAYWALLED", templateContent)
-
 	if err != nil {
 		return "", err
 	}

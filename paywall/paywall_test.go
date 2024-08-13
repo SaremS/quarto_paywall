@@ -1,9 +1,9 @@
 package paywall
 
 import (
+	"net/http/httptest"
 	"strings"
 	"testing"
-	"net/http/httptest"
 )
 
 func TestStripPrefixFromPaths(t *testing.T) {
@@ -18,7 +18,6 @@ func TestStripPrefixFromPaths(t *testing.T) {
 }
 
 func TestWriteHtmlReponse(t *testing.T) {
-
 	stringDocs := make(map[string]string)
 	stringDocs["test"] = `<html><head></head><body><div class="navbar-nav navbar-nav-scroll ms-auto"></div><div class="PAYWALLED"></div><div class="Test">test</div></body></html>`
 
@@ -29,7 +28,6 @@ func TestWriteHtmlReponse(t *testing.T) {
 	}
 
 	targetPaywall, err := NewPaywallFromStringDocs(stringDocs, staticContent)
-
 	if err != nil {
 		t.Fatalf("NewPaywall() error = %v", err)
 	}
@@ -73,7 +71,7 @@ func TestAddLoginListElement(t *testing.T) {
 	targetReplaced = strings.ReplaceAll(targetReplaced, "\n", "")
 	targetReplaced = strings.ReplaceAll(targetReplaced, "\t", "")
 
-	//compare with all whitespace removed
+	// compare with all whitespace removed
 	if resultReplaced != targetReplaced {
 		t.Errorf("addLoginListElement() = %v, want %v", resultReplaced, targetReplaced)
 	}
@@ -87,9 +85,9 @@ func TestReplacePaywallContent(t *testing.T) {
 		t.Fatalf("replacePaywallContent() error = %v", err)
 	}
 
-	target := `<html><head></head><body><div class="PAYWALLED"></div>	{{ if and .UserInfo.LoggedIn .UserInfo.HasPaid }}
+	target := `<html><head></head><body><div class="PAYWALLED"></div>	{{ if and .UserInfoHasPaid.LoggedIn .UserInfoHasPaid.HasPaid }}
 		{{ .PaywallContent.WalledContent }}
-	{{ else if and (.UserInfo.LoggedIn) (not .UserInfo.HasPaid) }}
+	{{ else if and (.UserInfoHasPaid.LoggedIn) (not .UserInfoHasPaid.HasPaid) }}
 		{{ .PaywallContent.PaywallContent }}
 	{{ else }}
 		{{ .PaywallContent.LoginwallContent }}
@@ -144,7 +142,6 @@ func TestNewPaywallFromStringDocsWithPaywalledContent(t *testing.T) {
 	}
 
 	targetPaywall, err := NewPaywallFromStringDocs(stringDocs, staticContent)
-
 	if err != nil {
 		t.Fatalf("NewPaywall() error = %v", err)
 	}
@@ -160,7 +157,6 @@ func TestNewPaywallFromStringDocsWithPaywalledContent(t *testing.T) {
 	}
 
 	result, err := targetPaywall.GetAsString("test", userInfoHasPaid)
-
 	if err != nil {
 		t.Fatalf("GetAsString() error = %v", err)
 	}
@@ -175,5 +171,21 @@ func TestNewPaywallFromStringDocsWithPaywalledContent(t *testing.T) {
 
 	if resultReplaced != targetReplaced {
 		t.Errorf("appendLoginScript() = %v, want %v", resultReplaced, targetReplaced)
+	}
+}
+
+func TestPaywallContainsPath_Contained(t *testing.T) {
+	p := newPaywall()
+	p.addTemplate("test/path", PaywallTemplate{})
+	if !p.ContainsPath("test/path") {
+		t.Errorf("ContainsPath() = %v, want %v", false, true)
+	}
+}
+
+func TestPaywallContainsPath_NotContained(t *testing.T) {
+	p := newPaywall()
+	p.addTemplate("test/path", PaywallTemplate{})
+	if !p.ContainsPath("test/path") {
+		t.Errorf("ContainsPath() = %v, want %v", false, true)
 	}
 }
