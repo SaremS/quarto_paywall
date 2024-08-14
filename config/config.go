@@ -7,7 +7,8 @@ import (
 )
 
 type PaywallConfig struct {
-	elements []*PaywallConfigElement
+	elements       []*PaywallConfigElement
+	elementPathMap map[string]*PaywallConfigElement
 }
 
 func NewPaywallConfigFromCsvString(csvString string) (*PaywallConfig, error) {
@@ -20,6 +21,7 @@ func NewPaywallConfigFromCsvString(csvString string) (*PaywallConfig, error) {
 	}
 
 	elements := []*PaywallConfigElement{}
+	elementPathMap := map[string]*PaywallConfigElement{}
 
 	for i, row := range data {
 		if i == 0 {
@@ -35,14 +37,16 @@ func NewPaywallConfigFromCsvString(csvString string) (*PaywallConfig, error) {
 		price := row[3]
 		currency := row[4]
 		cutoffClassname := row[5]
-		element, err := newConfigElement(name, path, id, price, currency, cutoffClassname)
+		element, err := NewConfigElement(name, path, id, price, currency, cutoffClassname)
 		if err != nil {
 			return nil, fmt.Errorf("error creating config element for %s: %v", row, err)
 		}
 		elements = append(elements, element)
+		elementPathMap[path] = element
+
 	}
 
-	return &PaywallConfig{elements}, nil
+	return &PaywallConfig{elements, elementPathMap}, nil
 }
 
 func (p *PaywallConfig) GetElementAt(index int) (*PaywallConfigElement, error) {
@@ -58,6 +62,11 @@ func (p *PaywallConfig) GetPathsAsList() []string {
 		paths = append(paths, element.GetPath())
 	}
 	return paths
+}
+
+func (p *PaywallConfig) GetElementAtPath(path string) (*PaywallConfigElement, bool) {
+	element, ok := p.elementPathMap[path]
+	return element, ok
 }
 
 func checkHeaderIsValid(header []string) bool {

@@ -65,13 +65,25 @@ func (p *Paywall) addTemplate(path string, tmpl PaywallTemplate) {
 }
 
 // new paywall from filepath
-func NewPaywallFromStringDocs(stringDocs map[string]string, staticContent PaywallStaticContent) (*Paywall, error) {
+func NewPaywallFromStringDocs(docsAndConfigs map[string]HtmlPaywallConfigPair, staticContent PaywallStaticContent) (*Paywall, error) {
 	targetPaywall := newPaywall()
 
-	for path, content := range stringDocs {
+	for path, docAndConfig := range docsAndConfigs {
+		content := docAndConfig.HtmlString
 		contentWithLoginList, err := addLoginListElement(content)
 		if err != nil {
 			return nil, fmt.Errorf("error adding login list element path: %s, %v", path, err)
+		}
+
+		config := docAndConfig.Config
+		if config == nil {
+			template, err := newPaywallTemplate(path, contentWithLoginList, "", staticContent.Registerwall, staticContent.Paywall)
+			if err != nil {
+				log.Printf("Error creating paywall template path: %s, %v", path, err)
+				continue
+			}
+
+			targetPaywall.addTemplate(path, *template)
 		}
 
 		contentExtracted, err := getContentAfterClass(contentWithLoginList, "PAYWALLED")
