@@ -70,7 +70,7 @@ func NewPaywallFromStringDocs(docsAndConfigs map[string]HtmlPaywallConfigPair, s
 
 	for path, docAndConfig := range docsAndConfigs {
 		content := docAndConfig.HtmlString
-		contentWithLoginList, err := addLoginListElement(content)
+		contentWithLoginList, err := addLoginListElement(content, staticContent.NavbarLoginButton)
 		if err != nil {
 			return nil, fmt.Errorf("error adding login list element path: %s, %v", path, err)
 		}
@@ -114,13 +114,13 @@ func NewPaywallFromStringDocs(docsAndConfigs map[string]HtmlPaywallConfigPair, s
 	return targetPaywall, nil
 }
 
-func addLoginListElement(htmlString string) (string, error) {
-	targetString := `
-		{{ if .UserInfo.LoggedIn }}	
-			<button class="nav-link" onclick="runLogout()">Logout</button>
-		{{ else }}
-			<button class="nav-link" onclick="runLoginGithub()">Login</button>
-		{{ end }}`
+func addLoginListElement(htmlString string, targetString string) (string, error) {
+	// targetString := `
+	//	{{ if .UserInfo.LoggedIn }}
+	//		<button class="nav-link" onclick="runLogout()">Logout</button>
+	//	{{ else }}
+	//		<button class="nav-link" onclick="runLoginGithub()">Login</button>
+	//	{{ end }}`
 
 	result, err := appendNewNodeWithContent(htmlString, "navbar-nav navbar-nav-scroll ms-auto", targetString, "li", "class", "nav-item")
 	if err != nil {

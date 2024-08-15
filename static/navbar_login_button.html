@@ -1,0 +1,7 @@
+{{ if .UserInfo.LoggedIn }}
+  <button class="nav-link" onclick="runLogout()">Logout</button>
+{{ else }}
+  <button class="nav-link" onclick="runLoginGithub()">Login</button>
+{{ end }}
+
+

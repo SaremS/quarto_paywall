@@ -66,16 +66,12 @@ func TestWriteHtmlReponse(t *testing.T) {
 func TestAddLoginListElement(t *testing.T) {
 	baseHtml := `<html><head></head><body><div class="navbar-nav navbar-nav-scroll ms-auto"></div></body></html>`
 
-	result, err := addLoginListElement(baseHtml)
+	result, err := addLoginListElement(baseHtml, "test")
 	if err != nil {
 		t.Fatalf("addLoginListElement() error = %v", err)
 	}
 
-	target := `<html><head></head><body><div class="navbar-nav navbar-nav-scroll ms-auto"><li class="nav-item">				{{ if .UserInfo.LoggedIn }}	
-			<button class="nav-link" onclick="runLogout()">Logout</button>
-		{{ else }}
-			<button class="nav-link" onclick="runLoginGithub()">Login</button>
-		{{ end }}</li></div></body></html>`
+	target := `<html><head></head><body><div class="navbar-nav navbar-nav-scroll ms-auto"><li class="nav-item">test</li></div></body></html>`
 
 	resultReplaced := strings.ReplaceAll(result, " ", "")
 	resultReplaced = strings.ReplaceAll(resultReplaced, "\n", "")
@@ -162,6 +158,7 @@ func TestNewPaywallFromStringDocsWithPaywalledContent(t *testing.T) {
 		Paywall:           `<div>paywall</div>`,
 		Registerwall:      `<div>registerwall</div>`,
 		LoginScriptGithub: `<script>console.log("test")</script>`,
+		NavbarLoginButton: `test`,
 	}
 
 	targetPaywall, err := NewPaywallFromStringDocs(docsAndConfigs, staticContent)
@@ -169,7 +166,7 @@ func TestNewPaywallFromStringDocsWithPaywalledContent(t *testing.T) {
 		t.Fatalf("NewPaywall() error = %v", err)
 	}
 
-	target := `<html><head></head><body><div class="navbar-nav navbar-nav-scroll ms-auto"><li class="nav-item"><button class="nav-link" onclick="runLoginGithub()">Login</button></li></div><div class="PAYWALLED"></div><div>registerwall</div><script>console.log("test")</script></body></html>`
+	target := `<html><head></head><body><div class="navbar-nav navbar-nav-scroll ms-auto"><li class="nav-item">test</li></div><div class="PAYWALLED"></div><div>registerwall</div><script>console.log("test")</script></body></html>`
 
 	userInfoHasPaid := UserInfoHasPaid{
 		UserInfo: UserInfo{

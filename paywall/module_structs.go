@@ -79,6 +79,7 @@ type PaywallStaticContent struct {
 	Paywall           string
 	Registerwall      string
 	LoginScriptGithub string
+	NavbarLoginButton string
 }
 
 type PaywallRenderContent struct {
