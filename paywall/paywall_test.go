@@ -1,6 +1,7 @@
 package paywall
 
 import (
+	"gowall/config"
 	"net/http/httptest"
 	"strings"
 	"testing"
@@ -18,8 +19,21 @@ func TestStripPrefixFromPaths(t *testing.T) {
 }
 
 func TestWriteHtmlReponse(t *testing.T) {
-	stringDocs := make(map[string]string)
-	stringDocs["test"] = `<html><head></head><body><div class="navbar-nav navbar-nav-scroll ms-auto"></div><div class="PAYWALLED"></div><div class="Test">test</div></body></html>`
+	stringDoc := `<html><head></head><body><div class="navbar-nav navbar-nav-scroll ms-auto"></div><div class="PAYWALLED"></div><div class="Test">test</div></body></html>`
+
+	configElement, err := config.NewConfigElement("test", "test/test", "test", "12.50", "EUR", "PAYWALLED")
+	if err != nil {
+		t.Fatalf("NewConfigElement() error = %v", err)
+	}
+
+	htmlConfigPair := HtmlPaywallConfigPair{
+		HtmlString: stringDoc,
+		Config:     configElement,
+	}
+
+	docsAndConfigs := make(map[string]HtmlPaywallConfigPair)
+
+	docsAndConfigs["test"] = htmlConfigPair
 
 	staticContent := PaywallStaticContent{
 		Paywall:           `<div>paywall</div>`,
@@ -27,7 +41,7 @@ func TestWriteHtmlReponse(t *testing.T) {
 		LoginScriptGithub: `<script>console.log("test")</script>`,
 	}
 
-	targetPaywall, err := NewPaywallFromStringDocs(stringDocs, staticContent)
+	targetPaywall, err := NewPaywallFromStringDocs(docsAndConfigs, staticContent)
 	if err != nil {
 		t.Fatalf("NewPaywall() error = %v", err)
 	}
@@ -131,9 +145,18 @@ func TestAppendLoginScript(t *testing.T) {
 }
 
 func TestNewPaywallFromStringDocsWithPaywalledContent(t *testing.T) {
-	stringDocs := map[string]string{
-		"test": `<html><head></head><body><div class="navbar-nav navbar-nav-scroll ms-auto"></div><div class="PAYWALLED"></div><div class="Test">test</div></body></html>`,
+	stringDoc := `<html><head></head><body><div class="navbar-nav navbar-nav-scroll ms-auto"></div><div class="PAYWALLED"></div><div class="Test">test</div></body></html>`
+
+	configElement, err := config.NewConfigElement("test", "test/test", "test", "12.50", "EUR", "PAYWALLED")
+	if err != nil {
+		t.Fatalf("NewConfigElement() error = %v", err)
 	}
+
+	htmlConfigPair := HtmlPaywallConfigPair{stringDoc, configElement}
+
+	docsAndConfigs := make(map[string]HtmlPaywallConfigPair)
+
+	docsAndConfigs["test"] = htmlConfigPair
 
 	staticContent := PaywallStaticContent{
 		Paywall:           `<div>paywall</div>`,
@@ -141,7 +164,7 @@ func TestNewPaywallFromStringDocsWithPaywalledContent(t *testing.T) {
 		LoginScriptGithub: `<script>console.log("test")</script>`,
 	}
 
-	targetPaywall, err := NewPaywallFromStringDocs(stringDocs, staticContent)
+	targetPaywall, err := NewPaywallFromStringDocs(docsAndConfigs, staticContent)
 	if err != nil {
 		t.Fatalf("NewPaywall() error = %v", err)
 	}

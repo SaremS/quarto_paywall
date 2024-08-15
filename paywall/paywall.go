@@ -65,21 +65,34 @@ func (p *Paywall) addTemplate(path string, tmpl PaywallTemplate) {
 }
 
 // new paywall from filepath
-func NewPaywallFromStringDocs(stringDocs map[string]string, staticContent PaywallStaticContent) (*Paywall, error) {
+func NewPaywallFromStringDocs(docsAndConfigs map[string]HtmlPaywallConfigPair, staticContent PaywallStaticContent) (*Paywall, error) {
 	targetPaywall := newPaywall()
 
-	for path, content := range stringDocs {
+	for path, docAndConfig := range docsAndConfigs {
+		content := docAndConfig.HtmlString
 		contentWithLoginList, err := addLoginListElement(content)
 		if err != nil {
 			return nil, fmt.Errorf("error adding login list element path: %s, %v", path, err)
 		}
 
-		contentExtracted, err := getContentAfterClass(contentWithLoginList, "PAYWALLED")
+		conf := docAndConfig.Config
+		if conf == nil {
+			template, err := newPaywallTemplate(path, contentWithLoginList, "", staticContent.Registerwall, staticContent.Paywall)
+			if err != nil {
+				log.Printf("Error creating paywall template path: %s, %v", path, err)
+				continue
+			}
+
+			targetPaywall.addTemplate(path, *template)
+			continue
+		}
+
+		contentExtracted, err := getContentAfterClass(contentWithLoginList, conf.GetCutoffClassname())
 		if err != nil {
 			return nil, fmt.Errorf("error extracting content after class path: %s, %v", path, err)
 		}
 
-		contentPaywallReplaced, err := replacePaywallContent(contentWithLoginList)
+		contentPaywallReplaced, err := replacePaywallContent(contentWithLoginList, conf.GetCutoffClassname())
 		if err != nil {
 			return nil, fmt.Errorf("error replacing paywall content path: %s, %v", path, err)
 		}
@@ -117,7 +130,7 @@ func addLoginListElement(htmlString string) (string, error) {
 	return result, nil
 }
 
-func replacePaywallContent(htmlStr string) (string, error) {
+func replacePaywallContent(htmlStr string, replaceAfterClassName string) (string, error) {
 	templateContent := `
 	{{ if and .UserInfoHasPaid.LoggedIn .UserInfoHasPaid.HasPaid }}
 		{{ .PaywallContent.WalledContent }}
@@ -128,7 +141,7 @@ func replacePaywallContent(htmlStr string) (string, error) {
 	{{ end }}
 	`
 
-	htmlStrReplaced, err := replaceContentAfterClass(htmlStr, "PAYWALLED", templateContent)
+	htmlStrReplaced, err := replaceContentAfterClass(htmlStr, replaceAfterClassName, templateContent)
 	if err != nil {
 		return "", err
 	}

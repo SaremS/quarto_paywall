@@ -11,7 +11,7 @@ type PaywallConfigElement struct {
 	cutoffClassname string // last classname before paywall starts
 }
 
-func newConfigElement(name, path, id, price, currency, cutoffClassname string) (*PaywallConfigElement, error) {
+func NewConfigElement(name, path, id, price, currency, cutoffClassname string) (*PaywallConfigElement, error) {
 	if !isValidPath(path) {
 		return nil, fmt.Errorf("invalid path: %v", path)
 	}

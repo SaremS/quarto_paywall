@@ -5,7 +5,7 @@ import (
 )
 
 func TestNewConfigElement(t *testing.T) {
-	c, err := newConfigElement(
+	c, err := NewConfigElement(
 		"test",
 		"/test/whatever.html",
 		"abcd",
@@ -23,7 +23,7 @@ func TestNewConfigElement(t *testing.T) {
 }
 
 func TestGetPath(t *testing.T) {
-	c, _ := newConfigElement(
+	c, _ := NewConfigElement(
 		"test",
 		"/test/whatever.html",
 		"abcd",
@@ -37,7 +37,7 @@ func TestGetPath(t *testing.T) {
 }
 
 func TestGetName(t *testing.T) {
-	c, _ := newConfigElement(
+	c, _ := NewConfigElement(
 		"test",
 		"/test/whatever.html",
 		"abcd",
@@ -51,7 +51,7 @@ func TestGetName(t *testing.T) {
 }
 
 func TestGetId(t *testing.T) {
-	c, _ := newConfigElement(
+	c, _ := NewConfigElement(
 		"test",
 		"/test/whatever.html",
 		"abcd",
@@ -65,7 +65,7 @@ func TestGetId(t *testing.T) {
 }
 
 func TestGetPrice(t *testing.T) {
-	c, _ := newConfigElement(
+	c, _ := NewConfigElement(
 		"test",
 		"/test/whatever.html",
 		"abcd",
@@ -79,7 +79,7 @@ func TestGetPrice(t *testing.T) {
 }
 
 func TestGetCurrency(t *testing.T) {
-	c, _ := newConfigElement(
+	c, _ := NewConfigElement(
 		"test",
 		"/test/whatever.html",
 		"abcd",
@@ -93,7 +93,7 @@ func TestGetCurrency(t *testing.T) {
 }
 
 func TestGetCutoffClassname(t *testing.T) {
-	c, _ := newConfigElement(
+	c, _ := NewConfigElement(
 		"test",
 		"/test/whatever.html",
 		"abcd",
@@ -107,7 +107,7 @@ func TestGetCutoffClassname(t *testing.T) {
 }
 
 func TestCurrencyValid(t *testing.T) {
-	_, err := newConfigElement(
+	_, err := NewConfigElement(
 		"test",
 		"/test/whatever.html",
 		"abcd",

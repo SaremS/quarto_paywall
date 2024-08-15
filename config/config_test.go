@@ -59,3 +59,20 @@ func TestGetPathsAsList(t *testing.T) {
 		t.Errorf("GetPathsAsList() = %v, want /test/whatever2", paths[1])
 	}
 }
+
+func TestGetElementAtPath(t *testing.T) {
+	csv := `name, path, id, price, currency, cutoffClassname
+  test, /test/whatever, abcd, 12.34, EUR, PAYWALLED
+  test2, /test/whatever2, abcd2, 12.34, EUR, PAYWALLED`
+	config, err := NewPaywallConfigFromCsvString(csv)
+	if err != nil {
+		t.Errorf("NewPaywallConfigFromCsvString() error = %v", err)
+	}
+	element, ok := config.GetElementAtPath("/test/whatever")
+	if !ok {
+		t.Errorf("GetElementAtPath() error = %v", err)
+	}
+	if element.GetName() != "test" {
+		t.Errorf("GetName() = %v, want test", element.GetName())
+	}
+}
