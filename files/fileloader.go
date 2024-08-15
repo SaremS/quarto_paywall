@@ -1,7 +1,8 @@
 package files
 
 import (
-	"io/ioutil"
+	"os"
+
 	log "github.com/go-pkgz/lgr"
 )
 
@@ -16,7 +17,7 @@ func NewDiskFileLoader() *DiskFileLoader {
 }
 
 func (d *DiskFileLoader) ReadFileToString(path string) (string, error) {
-	data, err := ioutil.ReadFile(path)
+	data, err := os.ReadFile(path)
 	if err != nil {
 		log.Fatalf("Failed to fetch and load content in file %s: %v", path, err)
 		return "", err
@@ -24,7 +25,7 @@ func (d *DiskFileLoader) ReadFileToString(path string) (string, error) {
 	return string(data), nil
 }
 
-type DummyFileLoader struct{
+type DummyFileLoader struct {
 	pseudoString string
 }
 
