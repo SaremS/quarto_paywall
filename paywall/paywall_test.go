@@ -94,7 +94,7 @@ func TestAddLoginListElement(t *testing.T) {
 func TestReplacePaywallContent(t *testing.T) {
 	baseHtml := `<html><head></head><body><div class="PAYWALLED"></div><div class="Test">test</div></body></html>`
 
-	result, err := replacePaywallContent(baseHtml)
+	result, err := replacePaywallContent(baseHtml, "PAYWALLED")
 	if err != nil {
 		t.Fatalf("replacePaywallContent() error = %v", err)
 	}
