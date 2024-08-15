@@ -2,6 +2,7 @@ package main
 
 import (
 	//"html/template"
+	"gowall/config"
 	"gowall/files"
 	"gowall/paywall"
 	"net/http"
@@ -68,7 +69,20 @@ func main() {
 		LoginScriptGithub: loginscriptContent,
 	}
 
-	pw, err := paywall.NewPaywallFromStringDocs(htmlFiles, paywallStaticContent)
+	csv := `name, path, id, price, currency, cutoffClassname
+  test, _site/posts/paywalled.html, abcd, 12.34, EUR, PAYWALLED`
+
+	conf, err := config.NewPaywallConfigFromCsvString(csv)
+	if err != nil {
+		panic(err)
+	}
+
+	htmlConfigMap, err := paywall.NewHtmlPaywallConfigFromMap(htmlFiles, conf)
+	if err != nil {
+		panic(err)
+	}
+
+	pw, err := paywall.NewPaywallFromStringDocs(htmlConfigMap, paywallStaticContent)
 
 	pw.StripPrefixFromPaths("_site")
 

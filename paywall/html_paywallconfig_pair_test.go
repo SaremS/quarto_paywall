@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestNewHtmlPaywallConfigPairFromMap(t *testing.T) {
+func TestNewHtmlPaywallConfigFromMap(t *testing.T) {
 	htmlMap := make(map[string]string)
 	htmlMap["test"] = "value"
 
@@ -17,7 +17,7 @@ func TestNewHtmlPaywallConfigPairFromMap(t *testing.T) {
 		t.Errorf("NewPaywallConfigFromCsvString() error = %v", err)
 	}
 
-	pair, err := NewHtmlPaywallConfigPairFromMap(htmlMap, conf)
+	pair, err := NewHtmlPaywallConfigFromMap(htmlMap, conf)
 	if err != nil {
 		t.Errorf("Could not create new html config pair from map: error =%v", err)
 	}
