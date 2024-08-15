@@ -62,11 +62,15 @@ func main() {
 	paywallContent, _ := fileLoader.ReadFileToString("static/paywall.html")
 	registerwallContent, _ := fileLoader.ReadFileToString("static/registerwall.html")
 	loginscriptContent, _ := fileLoader.ReadFileToString("static/login_github.html")
+	navbarLoginButton, _ := fileLoader.ReadFileToString("static/navbar_login_button.html")
+	paywallHtmlContent, _ := fileLoader.ReadFileToString("static/paywall_content.html")
 
 	paywallStaticContent := paywall.PaywallStaticContent{
-		Paywall:           paywallContent,
-		Registerwall:      registerwallContent,
-		LoginScriptGithub: loginscriptContent,
+		Paywall:            paywallContent,
+		Registerwall:       registerwallContent,
+		LoginScriptGithub:  loginscriptContent,
+		NavbarLoginButton:  navbarLoginButton,
+		PaywallContentHtml: paywallHtmlContent,
 	}
 
 	csv := `name, path, id, price, currency, cutoffClassname

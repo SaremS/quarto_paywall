@@ -1,0 +1,7 @@
+{{ if and .UserInfoHasPaid.LoggedIn .UserInfoHasPaid.HasPaid }}
+  {{ .PaywallContent.WalledContent }}
+{{ else if and (.UserInfoHasPaid.LoggedIn) (not .UserInfoHasPaid.HasPaid) }}
+  {{ .PaywallContent.PaywallContent }}
+{{ else }}
+  {{ .PaywallContent.LoginwallContent }}
+{{ end }}
