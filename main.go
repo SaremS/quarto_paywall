@@ -70,7 +70,7 @@ func main() {
 	}
 
 	csv := `name, path, id, price, currency, cutoffClassname
-  test, _site/posts/paywalled.html, abcd, 12.34, EUR, PAYWALLED`
+  test, _site/posts/paywalled.html, abcd, 12.34, EUR, PAYWALL`
 
 	conf, err := config.NewPaywallConfigFromCsvString(csv)
 	if err != nil {

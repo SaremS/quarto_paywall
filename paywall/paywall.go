@@ -75,8 +75,8 @@ func NewPaywallFromStringDocs(docsAndConfigs map[string]HtmlPaywallConfigPair, s
 			return nil, fmt.Errorf("error adding login list element path: %s, %v", path, err)
 		}
 
-		config := docAndConfig.Config
-		if config == nil {
+		conf := docAndConfig.Config
+		if conf == nil {
 			template, err := newPaywallTemplate(path, contentWithLoginList, "", staticContent.Registerwall, staticContent.Paywall)
 			if err != nil {
 				log.Printf("Error creating paywall template path: %s, %v", path, err)
@@ -84,14 +84,15 @@ func NewPaywallFromStringDocs(docsAndConfigs map[string]HtmlPaywallConfigPair, s
 			}
 
 			targetPaywall.addTemplate(path, *template)
+			continue
 		}
 
-		contentExtracted, err := getContentAfterClass(contentWithLoginList, "PAYWALLED")
+		contentExtracted, err := getContentAfterClass(contentWithLoginList, conf.GetCutoffClassname())
 		if err != nil {
 			return nil, fmt.Errorf("error extracting content after class path: %s, %v", path, err)
 		}
 
-		contentPaywallReplaced, err := replacePaywallContent(contentWithLoginList)
+		contentPaywallReplaced, err := replacePaywallContent(contentWithLoginList, conf.GetCutoffClassname())
 		if err != nil {
 			return nil, fmt.Errorf("error replacing paywall content path: %s, %v", path, err)
 		}
@@ -129,7 +130,7 @@ func addLoginListElement(htmlString string) (string, error) {
 	return result, nil
 }
 
-func replacePaywallContent(htmlStr string) (string, error) {
+func replacePaywallContent(htmlStr string, replaceAfterClassName string) (string, error) {
 	templateContent := `
 	{{ if and .UserInfoHasPaid.LoggedIn .UserInfoHasPaid.HasPaid }}
 		{{ .PaywallContent.WalledContent }}
@@ -140,7 +141,7 @@ func replacePaywallContent(htmlStr string) (string, error) {
 	{{ end }}
 	`
 
-	htmlStrReplaced, err := replaceContentAfterClass(htmlStr, "PAYWALLED", templateContent)
+	htmlStrReplaced, err := replaceContentAfterClass(htmlStr, replaceAfterClassName, templateContent)
 	if err != nil {
 		return "", err
 	}
