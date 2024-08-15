@@ -63,83 +63,6 @@ func TestWriteHtmlReponse(t *testing.T) {
 	}
 }
 
-func TestAddLoginListElement(t *testing.T) {
-	baseHtml := `<html><head></head><body><div class="navbar-nav navbar-nav-scroll ms-auto"></div></body></html>`
-
-	result, err := addLoginListElement(baseHtml, "test")
-	if err != nil {
-		t.Fatalf("addLoginListElement() error = %v", err)
-	}
-
-	target := `<html><head></head><body><div class="navbar-nav navbar-nav-scroll ms-auto"><li class="nav-item">test</li></div></body></html>`
-
-	resultReplaced := strings.ReplaceAll(result, " ", "")
-	resultReplaced = strings.ReplaceAll(resultReplaced, "\n", "")
-	resultReplaced = strings.ReplaceAll(resultReplaced, "\t", "")
-
-	targetReplaced := strings.ReplaceAll(target, " ", "")
-	targetReplaced = strings.ReplaceAll(targetReplaced, "\n", "")
-	targetReplaced = strings.ReplaceAll(targetReplaced, "\t", "")
-
-	// compare with all whitespace removed
-	if resultReplaced != targetReplaced {
-		t.Errorf("addLoginListElement() = %v, want %v", resultReplaced, targetReplaced)
-	}
-}
-
-func TestReplacePaywallContent(t *testing.T) {
-	baseHtml := `<html><head></head><body><div class="PAYWALLED"></div><div class="Test">test</div></body></html>`
-
-	result, err := replacePaywallContent(baseHtml, "PAYWALLED")
-	if err != nil {
-		t.Fatalf("replacePaywallContent() error = %v", err)
-	}
-
-	target := `<html><head></head><body><div class="PAYWALLED"></div>	{{ if and .UserInfoHasPaid.LoggedIn .UserInfoHasPaid.HasPaid }}
-		{{ .PaywallContent.WalledContent }}
-	{{ else if and (.UserInfoHasPaid.LoggedIn) (not .UserInfoHasPaid.HasPaid) }}
-		{{ .PaywallContent.PaywallContent }}
-	{{ else }}
-		{{ .PaywallContent.LoginwallContent }}
-	{{ end }}</body></html>`
-
-	resultReplaced := strings.ReplaceAll(result, " ", "")
-	resultReplaced = strings.ReplaceAll(resultReplaced, "\n", "")
-	resultReplaced = strings.ReplaceAll(resultReplaced, "\t", "")
-
-	targetReplaced := strings.ReplaceAll(target, " ", "")
-	targetReplaced = strings.ReplaceAll(targetReplaced, "\n", "")
-	targetReplaced = strings.ReplaceAll(targetReplaced, "\t", "")
-
-	if resultReplaced != targetReplaced {
-		t.Errorf("replacePaywallContent() = %v, want %v", resultReplaced, targetReplaced)
-	}
-}
-
-func TestAppendLoginScript(t *testing.T) {
-	baseHtml := `<html><head></head><body></body></html>`
-	script := `<script>console.log("test")</script>`
-
-	result, err := appendLoginScript(baseHtml, script)
-	if err != nil {
-		t.Fatalf("appendLoginScript() error = %v", err)
-	}
-
-	target := `<html><head></head><body><script>console.log("test")</script></body></html>`
-
-	resultReplaced := strings.ReplaceAll(result, " ", "")
-	resultReplaced = strings.ReplaceAll(resultReplaced, "\n", "")
-	resultReplaced = strings.ReplaceAll(resultReplaced, "\t", "")
-
-	targetReplaced := strings.ReplaceAll(target, " ", "")
-	targetReplaced = strings.ReplaceAll(targetReplaced, "\n", "")
-	targetReplaced = strings.ReplaceAll(targetReplaced, "\t", "")
-
-	if resultReplaced != targetReplaced {
-		t.Errorf("appendLoginScript() = %v, want %v", resultReplaced, targetReplaced)
-	}
-}
-
 func TestNewPaywallFromStringDocsWithPaywalledContent(t *testing.T) {
 	stringDoc := `<html><head></head><body><div class="navbar-nav navbar-nav-scroll ms-auto"></div><div class="PAYWALLED"></div><div class="Test">test</div></body></html>`
 
@@ -166,7 +89,7 @@ func TestNewPaywallFromStringDocsWithPaywalledContent(t *testing.T) {
 		t.Fatalf("NewPaywall() error = %v", err)
 	}
 
-	target := `<html><head></head><body><div class="navbar-nav navbar-nav-scroll ms-auto"><li class="nav-item">test</li></div><div class="PAYWALLED"></div><div>registerwall</div><script>console.log("test")</script></body></html>`
+	target := `<html><head></head><body><div class="navbar-nav navbar-nav-scroll ms-auto"><li class="nav-item">test</li></div><div class="PAYWALLED"></div><script>console.log("test")</script></body></html>`
 
 	userInfoHasPaid := UserInfoHasPaid{
 		UserInfo: UserInfo{

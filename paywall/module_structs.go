@@ -76,10 +76,11 @@ func newPaywallContent(walledContent, loginwallContent, paywallContent string) P
 }
 
 type PaywallStaticContent struct {
-	Paywall           string
-	Registerwall      string
-	LoginScriptGithub string
-	NavbarLoginButton string
+	Paywall            string
+	Registerwall       string
+	LoginScriptGithub  string
+	NavbarLoginButton  string
+	PaywallContentHtml string
 }
 
 type PaywallRenderContent struct {
