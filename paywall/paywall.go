@@ -2,6 +2,7 @@ package paywall
 
 import (
 	"fmt"
+	"gowall/config"
 	"net/http"
 	"strings"
 
@@ -79,37 +80,43 @@ func NewPaywallFromStringDocs(docsAndConfigs map[string]HtmlPaywallConfigPair, s
 		if conf == nil {
 			template, err := newPaywallTemplate(path, contentWithLoginList, "", staticContent.Registerwall, staticContent.Paywall)
 			if err != nil {
-				log.Printf("Error creating paywall template path: %s, %v", path, err)
-				continue
+				return nil, fmt.Errorf("error creating paywall template path: %s, %v", path, err)
 			}
 
 			targetPaywall.addTemplate(path, *template)
-			continue
-		}
 
-		contentExtracted, err := getContentAfterClass(contentWithLoginList, conf.GetCutoffClassname())
-		if err != nil {
-			return nil, fmt.Errorf("error extracting content after class path: %s, %v", path, err)
+		} else {
+			template, err := createTemplateForPaywalledSite(contentWithLoginList, path, conf, staticContent)
+			if err != nil {
+				return nil, fmt.Errorf("error creating paywall template path: %s, %v", path, err)
+			}
+			targetPaywall.addTemplate(path, *template)
 		}
-
-		contentPaywallReplaced, err := replaceContentAfterClass(contentWithLoginList, conf.GetCutoffClassname(), staticContent.PaywallContentHtml)
-		if err != nil {
-			return nil, fmt.Errorf("error replacing paywall content path: %s, %v", path, err)
-		}
-
-		contentLoginScriptAdded, err := appendHtmlToHtmlNode(contentPaywallReplaced, staticContent.LoginScriptGithub, "body")
-		if err != nil {
-			return nil, fmt.Errorf("error adding login script path: %s, %v", path, err)
-		}
-
-		template, err := newPaywallTemplate(path, contentLoginScriptAdded, contentExtracted, staticContent.Registerwall, staticContent.Paywall)
-		if err != nil {
-			log.Printf("Error creating paywall template path: %s, %v", path, err)
-			continue
-		}
-
-		targetPaywall.addTemplate(path, *template)
 	}
 
 	return targetPaywall, nil
+}
+
+func createTemplateForPaywalledSite(content, path string, conf *config.PaywallConfigElement, staticContent PaywallStaticContent) (*PaywallTemplate, error) {
+	contentExtracted, err := getContentAfterClass(content, conf.GetCutoffClassname())
+	if err != nil {
+		return nil, fmt.Errorf("error extracting content after class path: %s, %v", path, err)
+	}
+
+	contentPaywallReplaced, err := replaceContentAfterClass(content, conf.GetCutoffClassname(), staticContent.PaywallContentHtml)
+	if err != nil {
+		return nil, fmt.Errorf("error replacing paywall content path: %s, %v", path, err)
+	}
+
+	contentLoginScriptAdded, err := appendHtmlToHtmlNode(contentPaywallReplaced, staticContent.LoginScriptGithub, "body")
+	if err != nil {
+		return nil, fmt.Errorf("error adding login script path: %s, %v", path, err)
+	}
+
+	template, err := newPaywallTemplate(path, contentLoginScriptAdded, contentExtracted, staticContent.Registerwall, staticContent.Paywall)
+	if err != nil {
+		return nil, fmt.Errorf("error creating paywall template path: %s, %v", path, err)
+	}
+
+	return template, nil
 }
